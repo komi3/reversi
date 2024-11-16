@@ -8,6 +8,8 @@ BOARD_SIZE = 8
 SQUARE_SIZE = SCREEN_SIZE // BOARD_SIZE
 WHITE, BLACK, EMPTY = 1, -1, 0
 
+
+
 pygame.init()
 screen = pygame.display.set_mode((SCREEN_SIZE, SCREEN_SIZE))
 pygame.display.set_caption('Reversi')
@@ -57,17 +59,23 @@ while True:
                 row, col = mouse_y // SQUARE_SIZE, mouse_x // SQUARE_SIZE
 
                 if current_turn == WHITE:
-                    board.grid[row, col] = WHITE
-                    current_turn = BLACK
-                    print(board.grid)
-                    print(current_turn)
+                    if not board.grid[row, col] == EMPTY:
+                        print("you cant play here pls choose a empty space")
+                    else:
+                        board.grid[row, col] = WHITE
+                        current_turn = BLACK
+                        print(board.grid)
+                        print(current_turn)
+
 
                 elif current_turn == BLACK:
-                    board.grid[row, col] = BLACK
-                    current_turn = WHITE
-                    print(board.grid)
-                    print(current_turn)
-
+                    if not board.grid[row, col] == EMPTY:
+                        print("you cant play here pls choose a empty space")
+                    else:
+                        board.grid[row, col] = BLACK
+                        current_turn = WHITE
+                        print(board.grid)
+                        print(current_turn)
 
     board.draw_board()
 
