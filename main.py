@@ -8,7 +8,8 @@ BOARD_SIZE = 8
 SQUARE_SIZE = SCREEN_SIZE // BOARD_SIZE
 WHITE, BLACK, EMPTY = 1, -1, 0
 
-
+#directions are in vectors (y,x) for example (-1,0) ↑
+directions_to_check = [(-1, 0), (-1, -1), (-1, 1), (1, -1), (1, 1), (0, 1), (1, 0), (0, -1)]
 
 pygame.init()
 screen = pygame.display.set_mode((SCREEN_SIZE, SCREEN_SIZE))
@@ -23,9 +24,31 @@ class Board:
         self.grid[3, 4] = BLACK
         self.grid[4, 3] = BLACK
         self.grid[4, 4] = WHITE
-    def draw_board(self):
-        screen.fill((0, 128, 0))
 
+    def check_if_on_board(self,row, col):
+
+            if 0 <= row < BOARD_SIZE and 0 <= col < BOARD_SIZE:
+                return True
+            else:
+                return False
+
+
+    def check_for_valid(self, row, col, current_turn, directions_to_check):
+        for x,y in directions_to_check:
+            px,py = row + y , col + x
+            to_flip = []
+            print(to_flip)
+            while self.check_if_on_board(px, py) == True and self.grid[px, py] != 0 and self.grid[px, py] != current_turn:
+                to_flip.append([px, py])
+                px += y
+                py += x
+
+            if self.check_if_on_board(px, py) == True and self.grid[px, py] == current_turn:
+                for px, py in to_flip:
+                    self.grid[px, py] = current_turn
+
+
+    def draw_board(self):
         screen.fill((0, 128, 0))
         for row in range(BOARD_SIZE):
             for col in range(BOARD_SIZE):
@@ -58,24 +81,21 @@ while True:
                 mouse_x, mouse_y = event.pos
                 row, col = mouse_y // SQUARE_SIZE, mouse_x // SQUARE_SIZE
 
-                if current_turn == WHITE:
-                    if not board.grid[row, col] == EMPTY:
-                        print("you cant play here pls choose a empty space")
+                board.check_for_valid(row, col, current_turn, directions_to_check)
+
+                if board.grid[row, col] == 0:
+                    board.grid[row, col] = current_turn
+                    if current_turn == 1:
+                        current_turn = -1
                     else:
-                        board.grid[row, col] = WHITE
-                        current_turn = BLACK
-                        print(board.grid)
-                        print(current_turn)
+                        current_turn = 1
+
+                else:
+                    print("this move is impossible")
 
 
-                elif current_turn == BLACK:
-                    if not board.grid[row, col] == EMPTY:
-                        print("you cant play here pls choose a empty space")
-                    else:
-                        board.grid[row, col] = BLACK
-                        current_turn = WHITE
-                        print(board.grid)
-                        print(current_turn)
+
+
 
     board.draw_board()
 
