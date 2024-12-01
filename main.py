@@ -2,20 +2,20 @@ import pygame
 import sys
 import numpy as np
 
-
+header = 30
 SCREEN_SIZE = 800
 BOARD_SIZE = 8
 SQUARE_SIZE = SCREEN_SIZE // BOARD_SIZE
 WHITE, BLACK, EMPTY = 1, -1, 0
-
+window_size = SCREEN_SIZE + header
 #directions are in vectors (y,x) for example (-1,0) ↑
 directions_to_check = [(-1, 0), (-1, -1), (-1, 1), (1, -1), (1, 1), (0, 1), (1, 0), (0, -1)]
 
 pygame.init()
-screen = pygame.display.set_mode((SCREEN_SIZE, SCREEN_SIZE))
+screen = pygame.display.set_mode((SCREEN_SIZE, window_size))
 pygame.display.set_caption('Reversi')
-white_points = 0
-black_points = 0
+font = pygame.font.Font(None, 48)
+winner = ""
 
 class Board:
     def __init__(self):
@@ -35,7 +35,9 @@ class Board:
                 return False
 
 
-    def end_of_match(self,white_points,black_points):
+    def end_of_match(self,winner):
+        white_points = 0
+        black_points = 0
         for x in self.grid.flatten():
             if x == 1:
                 white_points = white_points + 1
@@ -45,17 +47,20 @@ class Board:
             else:
                 continue
 
-            if white_points + black_points == 64:
-                print("end of the game")
+            end_of_the_match = False
+
+            if white_points + black_points == BOARD_SIZE * BOARD_SIZE:
+
+                end_of_the_match = True
                 if white_points < black_points:
-                    print(f"white:{white_points} black:{black_points}")
-                    print("black won the game ")
+
+                    winner = "black"
 
                 elif white_points > black_points:
-                    print(f"white:{white_points} black:{black_points}")
-                    print("white won the game ")
 
+                    winner = "white"
 
+        return end_of_the_match, white_points, black_points,winner
 
 
     def check_for_valid_show(self,current_turn, directions_to_check):
@@ -97,7 +102,7 @@ class Board:
     def draw_valid_move(self,valid_moves):
         for row, col in valid_moves:
             pygame.draw.circle(screen, (250, 200, 152),
-                               (col * SQUARE_SIZE + SQUARE_SIZE // 2, row * SQUARE_SIZE + SQUARE_SIZE // 2),
+                               (col * SQUARE_SIZE + SQUARE_SIZE // 2,  row * SQUARE_SIZE + SQUARE_SIZE // 2),
                                SQUARE_SIZE // 4)
 
 
@@ -117,6 +122,33 @@ class Board:
                                        SQUARE_SIZE // 2 - 5)
 
 
+
+    def draw_points(self, white_points, black_points, font,current_turn):
+
+        if current_turn == 1:
+            current_turn = "White"
+        elif current_turn == -1:
+            current_turn = "Black"
+
+        white_points, black_points = str(white_points), str(black_points)
+        text_surface = font.render(f"WHITE:{white_points}  BLACK:{black_points}       {current_turn}", True, (255, 255, 255))
+        screen.blit(text_surface, (200, 800))
+
+
+    def end_screen(self,white_points, black_points, font, winner):
+
+
+        screen.fill((0, 0, 0))
+        white_points, black_points = str(white_points), str(black_points)
+        text_surface = font.render(f"WHITE:{white_points}  BLACK:{black_points}  The winner is {winner}", True, (255, 255, 255))
+        screen.blit(text_surface, (100, 400))
+        pygame.display.flip()
+        pygame.time.delay(5000)
+
+
+
+
+
 board = Board()
 current_turn = BLACK
 
@@ -128,30 +160,60 @@ while True:
             pygame.quit()
             sys.exit()
 
+        if not valid_moves:
+            if current_turn == 1:
+                current_turn = -1
+            elif current_turn == -1:
+                current_turn = 1
+
+        if not valid_moves:
+            end_of_the_match, white_points, black_points, winner = board.end_of_match(winner)
+            board.end_screen(white_points, black_points, font, winner)
+            pygame.quit()
+            sys.exit()
+
         if event.type == pygame.MOUSEBUTTONDOWN:
                 mouse_x, mouse_y = event.pos
                 row, col = mouse_y // SQUARE_SIZE, mouse_x // SQUARE_SIZE
 
-
-                if board.grid[row, col] == 0:
-                    board.grid[row, col] = current_turn
-                    board.flip(col, row, current_turn, directions_to_check)
+                if not valid_moves:
                     if current_turn == 1:
                         current_turn = -1
-                    else:
+                    elif current_turn == -1:
                         current_turn = 1
 
+                if [row, col] in valid_moves:
+                    board.grid[row, col] = current_turn
+                    board.flip(col, row, current_turn, directions_to_check)
+
+                    if current_turn == 1:
+                        current_turn = -1
+                    elif current_turn == -1:
+                        current_turn = 1
+
+
+
                 else:
-                    print("this move is impossible")
+                     print("this move is impossible")
 
 
-    board.end_of_match(white_points, black_points)
+
+
+
     board.draw_board()
     board.draw_valid_move(valid_moves)
+    end_of_the_match, white_points, black_points, winner = board.end_of_match(winner)
 
 
 
-    # Update the display
+    board.draw_points(white_points, black_points, font,current_turn)
+
+    if end_of_the_match == True:
+       board.end_screen(white_points, black_points, font, winner)
+       pygame.quit()
+       sys.exit()
+
+
     pygame.display.flip()
 
 
