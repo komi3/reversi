@@ -16,6 +16,8 @@ screen = pygame.display.set_mode((SCREEN_SIZE, window_size))
 pygame.display.set_caption('Reversi')
 font = pygame.font.Font(None, 48)
 winner = ""
+white_points = 0
+black_points = 0
 
 class Board:
     def __init__(self):
@@ -60,7 +62,7 @@ class Board:
 
                     winner = "white"
 
-        return end_of_the_match, white_points, black_points,winner
+        return end_of_the_match, white_points, black_points, winner
 
 
     def check_for_valid_show(self,current_turn, directions_to_check):
@@ -70,7 +72,6 @@ class Board:
 
                 if self.grid[row, col] != EMPTY:
                     continue
-
 
                 for dx, dy in directions_to_check:
                     px, py = row + dx, col + dy
@@ -135,22 +136,30 @@ class Board:
         screen.blit(text_surface, (200, 800))
 
 
-    def end_screen(self,white_points, black_points, font, winner):
+    def end_screen(self,white_points, black_points, font, winner,mouse_x, mouse_y):
 
+        play_again = False
 
         screen.fill((0, 0, 0))
         white_points, black_points = str(white_points), str(black_points)
-        text_surface = font.render(f"WHITE:{white_points}  BLACK:{black_points}  The winner is {winner}", True, (255, 255, 255))
-        screen.blit(text_surface, (100, 400))
+        text_surface = font.render(f"WHITE: {white_points}  BLACK: {black_points}  Winner: {winner}", True,(255, 255, 255))
+        screen.blit(text_surface, (SCREEN_SIZE // 6, window_size // 3))
+
+        # Button setup
+        button_rect = pygame.Rect(SCREEN_SIZE // 3, window_size // 2, SCREEN_SIZE // 3, 50)
+        pygame.draw.rect(screen, (173, 216, 230), button_rect)
+        button_text = font.render("Play Again", True, (0, 0, 0))
+        screen.blit(button_text, (button_rect.x + 10, button_rect.y + 10))
+
+        if button_rect.collidepoint((mouse_x, mouse_y)):
+            play_again = True
+
         pygame.display.flip()
-        pygame.time.delay(5000)
-
-
-
-
+        return play_again
 
 board = Board()
 current_turn = BLACK
+play_again = False
 
 while True:
     for event in pygame.event.get():
@@ -168,9 +177,8 @@ while True:
 
         if not valid_moves:
             end_of_the_match, white_points, black_points, winner = board.end_of_match(winner)
-            board.end_screen(white_points, black_points, font, winner)
-            pygame.quit()
-            sys.exit()
+            board.end_screen(white_points, black_points, font, winner, mouse_x, mouse_y)
+
 
         if event.type == pygame.MOUSEBUTTONDOWN:
                 mouse_x, mouse_y = event.pos
@@ -198,8 +206,6 @@ while True:
 
 
 
-
-
     board.draw_board()
     board.draw_valid_move(valid_moves)
     end_of_the_match, white_points, black_points, winner = board.end_of_match(winner)
@@ -208,15 +214,20 @@ while True:
 
     board.draw_points(white_points, black_points, font,current_turn)
 
-    if end_of_the_match == True:
-       board.end_screen(white_points, black_points, font, winner)
-       pygame.quit()
-       sys.exit()
+    if end_of_the_match:
+        if event.type == pygame.MOUSEBUTTONDOWN:
+            mouse_x, mouse_y = pygame.mouse.get_pos()
+            play_again = board.end_screen(white_points, black_points, font, winner, mouse_x, mouse_y)
+            if play_again:
+                board = Board()
+                current_turn = BLACK
+                end_of_the_match = False
+        else:
+            board.end_screen(white_points, black_points, font, winner, 0, 0)
 
 
     pygame.display.flip()
 
 
-# # end game screen
 
-
+ 
