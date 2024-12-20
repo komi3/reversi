@@ -145,17 +145,44 @@ class Board:
         text_surface = font.render(f"WHITE: {white_points}  BLACK: {black_points}  Winner: {winner}", True,(255, 255, 255))
         screen.blit(text_surface, (SCREEN_SIZE // 6, window_size // 3))
 
-        # Button setup
+
         button_rect = pygame.Rect(SCREEN_SIZE // 3, window_size // 2, SCREEN_SIZE // 3, 50)
         pygame.draw.rect(screen, (173, 216, 230), button_rect)
         button_text = font.render("Play Again", True, (0, 0, 0))
         screen.blit(button_text, (button_rect.x + 10, button_rect.y + 10))
+
+        button_rect2 = pygame.Rect(SCREEN_SIZE // 3, window_size // 2 + 60, SCREEN_SIZE // 3, 50)
+        pygame.draw.rect(screen, (173, 216, 230), button_rect2)
+        button_text2 = font.render("Stats", True, (0, 0, 0))
+        screen.blit(button_text2, (button_rect2.x + 10, button_rect2.y + 10))
+
+        button_rect2 = pygame.Rect(SCREEN_SIZE // 3, window_size // 2 + 120, SCREEN_SIZE // 3, 50)
+        pygame.draw.rect(screen, (173, 216, 230), button_rect2)
+        button_text2 = font.render("Back", True, (0, 0, 0))
+        screen.blit(button_text2, (button_rect2.x + 10, button_rect2.y + 10))
 
         if button_rect.collidepoint((mouse_x, mouse_y)):
             play_again = True
 
         pygame.display.flip()
         return play_again
+
+    def draw_complete_end_screen(self, white_wins, black_wins, total_white_points, total_black_points, font, screen):
+
+        screen.fill((0, 0, 0))
+        white_wins, black_wins, total_white_points, total_black_points = (str(white_wins), str(black_wins),
+                                                                          str(total_white_points),
+                                                                          str(total_black_points))
+        text_surface = font.render(f"White  wins:{white_wins}     Black wins:{black_wins}", True,
+                                   (255, 255, 255))
+        screen.blit(text_surface, (SCREEN_SIZE // 6, window_size // 3))
+        text_surface2 = font.render(
+            f"White total points:{total_white_points}      Black total points:{total_black_points} ", True,
+            (255, 255, 255))
+        screen.blit(text_surface2, (SCREEN_SIZE // 7, window_size // 4))
+
+        pygame.display.flip()
+
 
 board = Board()
 current_turn = BLACK
@@ -168,6 +195,13 @@ while True:
         if event.type == pygame.QUIT:
             pygame.quit()
             sys.exit()
+
+        if event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_ESCAPE:
+                pygame.quit()
+                sys.exit()
+            if event.key == pygame.K_w:
+                board = 1
 
         if not valid_moves:
             if current_turn == 1:
@@ -227,6 +261,7 @@ while True:
 
 
     pygame.display.flip()
+#add a button show statisticks to the end of the match function that will triger draw complete end screen
 
 
 
