@@ -20,6 +20,10 @@ pygame.display.set_caption('Reversi')
 winner = ""
 white_points = 0
 black_points = 0
+total_white_points = 0
+total_black_points = 0
+black_wins = 0
+white_wins = 0
 
 class Board:
     def __init__(self):
@@ -52,18 +56,19 @@ class Board:
             else:
                 continue
 
+            if white_points < black_points:
+
+                winner = "black"
+
+            elif white_points > black_points:
+
+                winner = "white"
+
             end_of_the_match = False
 
             if white_points + black_points == BOARD_SIZE * BOARD_SIZE:
 
                 end_of_the_match = True
-                if white_points < black_points:
-
-                    winner = "black"
-
-                elif white_points > black_points:
-
-                    winner = "white"
 
         return end_of_the_match, white_points, black_points, winner
 
@@ -146,6 +151,9 @@ class MainMenu:
     def main_menu(self,mouse_x, mouse_y):
 
         play = False
+        stats_mode = False
+        AI = False
+        end_game = False
 
         screen.fill((0, 0, 0))
 
@@ -171,19 +179,37 @@ class MainMenu:
 
         if button_rect.collidepoint((mouse_x, mouse_y)):
             play = True
+        elif button_rect2.collidepoint((mouse_x, mouse_y)):
+            AI = True
+        elif button_rect3.collidepoint((mouse_x, mouse_y)):
+            stats_mode = True
+        elif button_rect4.collidepoint((mouse_x, mouse_y)):
+            end_game = True
+
 
 
         pygame.display.flip()
-        return play
+        return play, AI, stats_mode, end_game
 
 
 class End:
     def __init__(self):
         self.font = pygame.font.Font(None, 48)
 
-    def end_screen(self,white_points, black_points,  winner,mouse_x, mouse_y):
-
+    def end_screen(self,white_points, black_points,  winner, mouse_x, mouse_y, total_white_points, total_black_points, white_wins, black_wins):
+        show_game = False
         play_again = False
+        stats_mode = False
+        back = True
+
+        total_white_points = total_white_points + white_points
+        total_black_points = total_black_points + black_points
+
+        if winner == "black":
+            black_wins += 1
+        elif winner == "white":
+            white_wins += 1
+
 
         screen.fill((0, 0, 0))
         white_points, black_points = str(white_points), str(black_points)
@@ -201,42 +227,74 @@ class End:
         button_text2 = self.font.render("Stats", True, (0, 0, 0))
         screen.blit(button_text2, (button_rect2.x + 10, button_rect2.y + 10))
 
-        button_rect2 = pygame.Rect(SCREEN_SIZE // 3, window_size // 2 + 120, SCREEN_SIZE // 3, 50)
-        pygame.draw.rect(screen, (173, 216, 230), button_rect2)
-        button_text2 = self.font.render("Back", True, (0, 0, 0))
-        screen.blit(button_text2, (button_rect2.x + 10, button_rect2.y + 10))
+        button_rect3 = pygame.Rect(SCREEN_SIZE // 3, window_size // 2 + 120, SCREEN_SIZE // 3, 50)
+        pygame.draw.rect(screen, (173, 216, 230), button_rect3)
+        button_text3 = self.font.render("Show game", True, (0, 0, 0))
+        screen.blit(button_text3, (button_rect3.x + 10, button_rect3.y + 10))
+
+        button_rect4 = pygame.Rect(SCREEN_SIZE // 3, window_size // 2 + 180, SCREEN_SIZE // 3, 50)
+        pygame.draw.rect(screen, (173, 216, 230), button_rect4)
+        button_text4 = self.font.render("Back", True, (0, 0, 0))
+        screen.blit(button_text4, (button_rect4.x + 10, button_rect4.y + 10))
 
         if button_rect.collidepoint((mouse_x, mouse_y)):
             play_again = True
 
+        elif button_rect3.collidepoint((mouse_x, mouse_y)):
+            show_game = True
+
+        elif button_rect2.collidepoint((mouse_x, mouse_y)):
+            stats_mode = True
+        elif button_rect4.collidepoint((mouse_x, mouse_y)):
+            back = True
+
+
 
         pygame.display.flip()
-        return play_again
+        return play_again, show_game, stats_mode , total_black_points, total_white_points, white_wins, black_wins, back
 
 class Stats:
     def __init__(self):
         self.font = pygame.font.Font(None, 48)
 
 
-    def stats(self, white_wins, black_wins, total_white_points, total_black_points, font, screen):
+    def stats(self, white_wins, black_wins, total_white_points, total_black_points, screen, mouse_x, mouse_y):
+        play_again = False
+        back = False
 
         screen.fill((0, 0, 0))
         white_wins, black_wins, total_white_points, total_black_points = (str(white_wins), str(black_wins),
                                                                           str(total_white_points),
                                                                           str(total_black_points))
-        text_surface = font.render(f"White  wins:{white_wins}     Black wins:{black_wins}", True,
+        text_surface = self.font.render(f"White  wins:{white_wins}     Black wins:{black_wins}", True,
                                    (255, 255, 255))
-        screen.blit(text_surface, (SCREEN_SIZE // 6, window_size // 3))
-        text_surface2 = font.render(f"White total points:{total_white_points}      Black total points:{total_black_points} ", True,
+        screen.blit(text_surface, (SCREEN_SIZE // 4, window_size // 4))
+        text_surface2 = self.font.render(f"White total points:{total_white_points}      Black total points:{total_black_points} ", True,
                                    (255, 255, 255))
-        screen.blit(text_surface2, (SCREEN_SIZE // 7, window_size // 4))
+        screen.blit(text_surface2, (SCREEN_SIZE // 12, window_size // 5))
 
         button_rect = pygame.Rect(SCREEN_SIZE // 3, window_size // 2 + 120, SCREEN_SIZE // 3, 50)
         pygame.draw.rect(screen, (173, 216, 230), button_rect)
-        button_text = font.render("Play Again", True, (0, 0, 0))
+        button_text = self.font.render("Play Again", True, (0, 0, 0))
         screen.blit(button_text, (button_rect.x + 10, button_rect.y + 10))
 
+        button_rect2 = pygame.Rect(SCREEN_SIZE // 3, window_size // 2 + 180, SCREEN_SIZE // 3, 50)
+        pygame.draw.rect(screen, (173, 216, 230), button_rect2)
+        button_text2 = self.font.render("Back", True, (0, 0, 0))
+        screen.blit(button_text2, (button_rect2.x + 10, button_rect2.y + 10))
+
+
+        if button_rect.collidepoint((mouse_x, mouse_y)):
+            play_again = True
+
+        elif button_rect2.collidepoint((mouse_x, mouse_y)):
+            back = True
+
         pygame.display.flip()
+
+        return back, play_again
+
+
 
 board = Board()
 main_menu = MainMenu()
@@ -266,9 +324,21 @@ while True:
 
             if event.type == pygame.MOUSEBUTTONDOWN:
                 mouse_x, mouse_y = pygame.mouse.get_pos()
-                play = main_menu.main_menu(mouse_x, mouse_y)
+                play, AI, stats_mode, end_game = main_menu.main_menu(mouse_x, mouse_y)
                 if play:
+                    board = Board()
+                    current_turn = BLACK
                     game_mode = "playing"
+
+                elif AI:
+                    continue
+                elif stats_mode:
+                    game_mode = "Stats"
+
+                elif end_game:
+                    pygame.quit()
+                    sys.exit()
+
 
     if game_mode == "playing":
         valid_moves = board.check_for_valid_show(current_turn, directions_to_check)
@@ -301,12 +371,10 @@ while True:
             if not valid_moves:
                 if current_turn == 1:
                     current_turn = -1
+
                 elif current_turn == -1:
                     current_turn = 1
 
-            if not valid_moves:
-                end_of_the_match, white_points, black_points, winner = board.end_of_match(winner)
-                game_mode = "end_screen"
 
             if event.type == pygame.MOUSEBUTTONDOWN:
                 mouse_x, mouse_y = event.pos
@@ -353,17 +421,57 @@ while True:
                     pygame.quit()
                     sys.exit()
 
-            end_screen.end_screen(white_points, black_points,  winner, mouse_x, mouse_y)
+            end_screen.end_screen(white_points, black_points,  winner, mouse_x, mouse_y,total_white_points, total_black_points, white_wins, black_wins)
 
             if event.type == pygame.MOUSEBUTTONDOWN:
                 mouse_x, mouse_y = pygame.mouse.get_pos()
 
-                play_again = end_screen.end_screen(white_points, black_points, winner, mouse_x, mouse_y)
+                play_again, show_game, stats_mode, total_black_points, total_white_points,white_wins, black_wins, back = end_screen.end_screen(white_points, black_points, winner, mouse_x, mouse_y,total_white_points, total_black_points, white_wins, black_wins)
 
                 if play_again:
                     board = Board()
                     current_turn = BLACK
                     game_mode = "playing"
+                elif show_game:
+                    game_mode = "playing"
+
+                elif stats_mode:
+                    game_mode = "Stats"
+
+                elif back:
+                    game_mode = "main menu"
+
 
         pygame.display.flip()
+
+
+    if game_mode == "Stats":
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE:
+                    pygame.quit()
+                    sys.exit()
+
+            stats.stats(white_wins, black_wins, total_white_points, total_black_points, screen, mouse_x, mouse_y)
+
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                mouse_x, mouse_y = pygame.mouse.get_pos()
+                back, play_again = stats.stats(white_wins, black_wins, total_white_points, total_black_points, screen,mouse_x, mouse_y)
+                if play_again:
+                    board = Board()
+                    current_turn = BLACK
+                    game_mode = "playing"
+
+                if back:
+                    game_mode = "main menu"
+
+
+
+#fix the senerio if there are no valid moves to play to end the game it doesn't work now
+#add the stats
+#add the back
 
