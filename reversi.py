@@ -11,7 +11,7 @@ BOARD_SIZE = 8
 SQUARE_SIZE = SCREEN_SIZE // BOARD_SIZE
 WHITE, BLACK, EMPTY = 1, -1, 0
 window_size = SCREEN_SIZE + header
-#directions are in vectors (y,x) for example (-1,0) ↑
+# directions are in vectors (y,x) for example (-1,0) ↑
 directions_to_check = [(-1, 0), (-1, -1), (-1, 1), (1, -1), (1, 1), (0, 1), (1, 0), (0, -1)]
 
 pygame.init()
@@ -25,10 +25,10 @@ total_black_points = 0
 black_wins = 0
 white_wins = 0
 
+
 class Board:
     def __init__(self):
         self.font = pygame.font.Font(None, 48)
-        BOARD_SIZE = 8
         self.grid = np.zeros((BOARD_SIZE, BOARD_SIZE), dtype=int)
 
         self.grid[3, 3] = WHITE
@@ -36,15 +36,14 @@ class Board:
         self.grid[4, 3] = BLACK
         self.grid[4, 4] = WHITE
 
-    def check_if_on_board(self,row, col):
-
-            if 0 <= row < BOARD_SIZE and 0 <= col < BOARD_SIZE:
-                return True
-            else:
-                return False
-
+    def check_if_on_board(self, row, col):
+        if 0 <= row < BOARD_SIZE and 0 <= col < BOARD_SIZE:
+            return True
+        else:
+            return False
 
     def end_of_match(self,winner):
+        end_of_the_match = False
         white_points = 0
         black_points = 0
         for x in self.grid.flatten():
@@ -64,14 +63,11 @@ class Board:
 
                 winner = "white"
 
-            end_of_the_match = False
-
             if white_points + black_points == BOARD_SIZE * BOARD_SIZE:
 
                 end_of_the_match = True
 
         return end_of_the_match, white_points, black_points, winner
-
 
     def check_for_valid_show(self,current_turn, directions_to_check):
         valid_moves = []
@@ -114,7 +110,6 @@ class Board:
                                (col * SQUARE_SIZE + SQUARE_SIZE // 2,  row * SQUARE_SIZE + SQUARE_SIZE // 2),
                                SQUARE_SIZE // 4)
 
-
     def draw_board(self):
         screen.fill((0, 128, 0))
         for row in range(BOARD_SIZE):
@@ -129,8 +124,6 @@ class Board:
                     pygame.draw.circle(screen, (0, 0, 0),
                                        (col * SQUARE_SIZE + SQUARE_SIZE // 2, row * SQUARE_SIZE + SQUARE_SIZE // 2),
                                        SQUARE_SIZE // 2 - 5)
-
-
 
     def draw_points(self, white_points, black_points, current_turn):
 
@@ -185,8 +178,6 @@ class MainMenu:
             stats_mode = True
         elif button_rect4.collidepoint((mouse_x, mouse_y)):
             end_game = True
-
-
 
         pygame.display.flip()
         return play, AI, stats_mode, end_game
@@ -248,10 +239,9 @@ class End:
         elif button_rect4.collidepoint((mouse_x, mouse_y)):
             back = True
 
-
-
         pygame.display.flip()
         return play_again, show_game, stats_mode , total_black_points, total_white_points, white_wins, black_wins, back
+
 
 class Stats:
     def __init__(self):
@@ -271,7 +261,7 @@ class Stats:
         screen.blit(text_surface, (SCREEN_SIZE // 4, window_size // 4))
         text_surface2 = self.font.render(f"White total points:{total_white_points}      Black total points:{total_black_points} ", True,
                                    (255, 255, 255))
-        screen.blit(text_surface2, (SCREEN_SIZE // 12, window_size // 5))
+        screen.blit(text_surface2, (SCREEN_SIZE // 20, window_size // 5))
 
         button_rect = pygame.Rect(SCREEN_SIZE // 3, window_size // 2 + 120, SCREEN_SIZE // 3, 50)
         pygame.draw.rect(screen, (173, 216, 230), button_rect)
@@ -282,7 +272,6 @@ class Stats:
         pygame.draw.rect(screen, (173, 216, 230), button_rect2)
         button_text2 = self.font.render("Back", True, (0, 0, 0))
         screen.blit(button_text2, (button_rect2.x + 10, button_rect2.y + 10))
-
 
         if button_rect.collidepoint((mouse_x, mouse_y)):
             play_again = True
@@ -295,7 +284,6 @@ class Stats:
         return back, play_again
 
 
-
 board = Board()
 main_menu = MainMenu()
 end_screen = End()
@@ -304,8 +292,7 @@ stats = Stats()
 mouse_x, mouse_y = 0, 0
 play = False
 current_turn = 1
-
-
+no_valid_move_counter = 0
 
 while True:
 
@@ -339,7 +326,6 @@ while True:
                     pygame.quit()
                     sys.exit()
 
-
     if game_mode == "playing":
         valid_moves = board.check_for_valid_show(current_turn, directions_to_check)
 
@@ -355,8 +341,6 @@ while True:
                     pygame.quit()
                     sys.exit()
 
-
-
             if event.type == pygame.QUIT:
                 pygame.quit()
                 sys.exit()
@@ -369,12 +353,27 @@ while True:
                     board = 1
 
             if not valid_moves:
+                if no_valid_move_counter == 2:
+                    end_of_the_match, white_points, black_points, winner = board.end_of_match(winner)
+                    game_mode = "end_screen"
+                    break
+
                 if current_turn == 1:
                     current_turn = -1
+
+                    no_valid_move_counter = no_valid_move_counter + 1
+                    print(no_valid_move_counter)
+                    break
 
                 elif current_turn == -1:
                     current_turn = 1
 
+                    no_valid_move_counter = no_valid_move_counter + 1
+                    print(no_valid_move_counter)
+                    break
+
+            if valid_moves:
+                no_valid_move_counter = 0
 
             if event.type == pygame.MOUSEBUTTONDOWN:
                 mouse_x, mouse_y = event.pos
@@ -394,8 +393,6 @@ while True:
                         current_turn = -1
                     elif current_turn == -1:
                         current_turn = 1
-
-
 
                 else:
                     print("this move is impossible")
@@ -441,9 +438,7 @@ while True:
                 elif back:
                     game_mode = "main menu"
 
-
         pygame.display.flip()
-
 
     if game_mode == "Stats":
         for event in pygame.event.get():
@@ -460,7 +455,7 @@ while True:
 
             if event.type == pygame.MOUSEBUTTONDOWN:
                 mouse_x, mouse_y = pygame.mouse.get_pos()
-                back, play_again = stats.stats(white_wins, black_wins, total_white_points, total_black_points, screen,mouse_x, mouse_y)
+                back, play_again = stats.stats(white_wins, black_wins, total_white_points, total_black_points, screen, mouse_x, mouse_y)
                 if play_again:
                     board = Board()
                     current_turn = BLACK
@@ -471,7 +466,6 @@ while True:
 
 
 
-#fix the senerio if there are no valid moves to play to end the game it doesn't work now
-#add the stats
-#add the back
+
+
 
