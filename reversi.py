@@ -191,7 +191,7 @@ class End:
         show_game = False
         play_again = False
         stats_mode = False
-        back = True
+        back = False
 
         total_white_points = total_white_points + white_points
         total_black_points = total_black_points + black_points
@@ -236,6 +236,7 @@ class End:
 
         elif button_rect2.collidepoint((mouse_x, mouse_y)):
             stats_mode = True
+
         elif button_rect4.collidepoint((mouse_x, mouse_y)):
             back = True
 
@@ -282,6 +283,9 @@ class Stats:
         pygame.display.flip()
 
         return back, play_again
+
+
+
 
 
 board = Board()
@@ -463,6 +467,11 @@ while True:
 
                 if back:
                     game_mode = "main menu"
+
+
+
+
+
 
 
 

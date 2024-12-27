@@ -142,7 +142,7 @@ class Board:
 
         screen.fill((0, 0, 0))
         white_points, black_points = str(white_points), str(black_points)
-        text_surface = font.render(f"WHITE: {white_points}  BLACK: {black_points}  Winner: {winner}", True,(255, 255, 255))
+        text_surface = font.render(f"WHITE: {white_points}  BLACK: {black_points}  Winner: {winner}", True, (255, 255, 255))
         screen.blit(text_surface, (SCREEN_SIZE // 6, window_size // 3))
 
 
@@ -261,7 +261,7 @@ while True:
 
 
     pygame.display.flip()
-#add a button show statisticks to the end of the match function that will triger draw complete end screen
+
 
 
 
