@@ -2,7 +2,6 @@ import pygame
 import sys
 import numpy as np
 
-
 game_mode = "main menu"
 
 header = 30
@@ -42,7 +41,7 @@ class Board:
         else:
             return False
 
-    def end_of_match(self,winner):
+    def end_of_match(self, winner):
         end_of_the_match = False
         white_points = 0
         black_points = 0
@@ -135,6 +134,16 @@ class Board:
         white_points, black_points = str(white_points), str(black_points)
         text_surface = self.font.render(f"WHITE:{white_points}  BLACK:{black_points}       {current_turn}", True, (255, 255, 255))
         screen.blit(text_surface, (200, 800))
+
+    def minimax(self, depth, winner):
+        maximizing_player = 1
+        #if winner == 1:
+             #continue
+
+
+
+
+
 
 
 class MainMenu:
@@ -240,8 +249,10 @@ class End:
         elif button_rect4.collidepoint((mouse_x, mouse_y)):
             back = True
 
+
+
         pygame.display.flip()
-        return play_again, show_game, stats_mode , total_black_points, total_white_points, white_wins, black_wins, back
+        return play_again, show_game, stats_mode, total_black_points, total_white_points, white_wins, black_wins, back
 
 
 class Stats:
@@ -323,6 +334,7 @@ while True:
 
                 elif AI:
                     continue
+                    
                 elif stats_mode:
                     game_mode = "Stats"
 
