@@ -135,17 +135,6 @@ class Board:
         text_surface = self.font.render(f"WHITE:{white_points}  BLACK:{black_points}       {current_turn}", True, (255, 255, 255))
         screen.blit(text_surface, (200, 800))
 
-    def minimax(self, depth, winner):
-        maximizing_player = 1
-        #if winner == 1:
-             #continue
-
-
-
-
-
-
-
 class MainMenu:
     def __init__(self):
         self.font = pygame.font.Font(None, 48)
@@ -249,8 +238,6 @@ class End:
         elif button_rect4.collidepoint((mouse_x, mouse_y)):
             back = True
 
-
-
         pygame.display.flip()
         return play_again, show_game, stats_mode, total_black_points, total_white_points, white_wins, black_wins, back
 
@@ -294,10 +281,6 @@ class Stats:
         pygame.display.flip()
 
         return back, play_again
-
-
-
-
 
 board = Board()
 main_menu = MainMenu()

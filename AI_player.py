@@ -28,6 +28,17 @@ depth = 2
 alfa = float('-inf')
 beta = float('inf')
 
+WEIGHTED_BOARD = np.array([
+            [100, -10, 10, 5, 5, 10, -10, 100],
+            [-10, -20, 1, 1, 1, 1, -20, -10],
+            [10, 1, 5, 5, 5, 5, 1, 10],
+            [5, 1, 5, 0, 0, 5, 1, 5],
+            [5, 1, 5, 0, 0, 5, 1, 5],
+            [10, 1, 5, 5, 5, 5, 1, 10],
+            [-10, -20, 1, 1, 1, 1, -20, -10],
+            [100, -10, 10, 5, 5, 10, -10, 100]
+        ])
+
 class Board:
     def __init__(self):
         self.font = pygame.font.Font(None, 48)
@@ -141,11 +152,10 @@ class Board:
         screen.blit(text_surface, (200, 800))
 
 
-    def evaluate_player(self):
-        # look how does the sum function work
+    def evaluate_player(self, WEIGHTED_BOARD):
 
-        black_points = np.sum(self.grid == BLACK)
-        white_points = np.sum(self.grid == WHITE)
+        black_points = np.sum(np.where(self.grid == BLACK, WEIGHTED_BOARD, 0)) #the where function replaces the value with True or False. False = 0  and True = amount on the weighted board
+        white_points = np.sum(np.where(self.grid == WHITE, WEIGHTED_BOARD, 0))
 
         if maximizing_player:
             score = white_points - black_points
@@ -167,16 +177,22 @@ class Board:
 
         end_of_the_match, white_points, black_points, winner = self.end_of_match("")
         if end_of_the_match or depth == 0:
-            return self.evaluate_player()
+            return self.evaluate_player(WEIGHTED_BOARD)
 
         valid_moves = self.check_for_valid_show(current_turn, directions_to_check)
 
         if not valid_moves:
-            no_valid_move_counter += 1
-            if no_valid_move_counter == 2:
-                return self.evaluate_player()
-            return self.minimax(depth, -current_turn, no_valid_move_counter, alfa, beta)
+            if current_turn == 1:
+                current_turn = -current_turn
+                no_valid_move_counter += 1
 
+            elif current_turn == -1:
+                current_turn = -current_turn
+                no_valid_move_counter += 1
+            if no_valid_move_counter == 2:
+                return self.evaluate_player(WEIGHTED_BOARD)
+
+            #return self.minimax(depth, -current_turn, no_valid_move_counter, alfa, beta)
 
         if valid_moves:
             no_valid_move_counter = 0
@@ -246,26 +262,22 @@ while True:
                     board = 1
 
             if not valid_moves:
-                if no_valid_move_counter == 2:
-                    end_of_the_match, white_points, black_points, winner = board.end_of_match(winner)
-                    board = Board()
-                    current_turn = 1
-                    game_mode = "playing"
-                    break
-
                 if current_turn == 1:
                     current_turn = -current_turn
-
-                    no_valid_move_counter = no_valid_move_counter + 1
+                    no_valid_move_counter += 1
                     print(no_valid_move_counter)
-                    break
-
                 elif current_turn == -1:
                     current_turn = -current_turn
-
-                    no_valid_move_counter = no_valid_move_counter + 1
+                    no_valid_move_counter += 1
                     print(no_valid_move_counter)
-                    break
+
+            if no_valid_move_counter == 2:
+                print(no_valid_move_counter)
+                end_of_the_match, white_points, black_points, winner = board.end_of_match(winner)
+                board = Board()
+                current_turn = -1
+                game_mode = "playing"
+                break
 
             if valid_moves:
                 no_valid_move_counter = 0
@@ -297,7 +309,6 @@ while True:
 
                     score = cloned_board.minimax(depth, -current_turn, no_valid_move_counter, alfa, beta)
 
-
                     if best_score < score:
                         best_move = move
                         best_score = score
@@ -315,7 +326,7 @@ while True:
         board.draw_points(white_points, black_points, current_turn)
         if end_of_the_match:
             board = Board()
-            current_turn = -current_turn
+            current_turn = -1
             game_mode = "playing"
 
     pygame.display.flip()
