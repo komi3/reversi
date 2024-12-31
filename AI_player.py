@@ -23,8 +23,10 @@ game_mode = "playing"
 current_turn = - 1
 
 maximizing_player = True
-depth = 5
+depth = 2
 
+alfa = float('-inf')
+beta = float('inf')
 
 class Board:
     def __init__(self):
@@ -37,6 +39,7 @@ class Board:
         self.grid[4, 4] = WHITE
 
     def check_if_on_board(self, row, col):
+
         if 0 <= row < BOARD_SIZE and 0 <= col < BOARD_SIZE:
             return True
         else:
@@ -141,8 +144,8 @@ class Board:
     def evaluate_player(self):
         # look how does the sum function work
 
-        black_points = np.sum(self.grid == 1)
-        white_points = np.sum(self.grid == -1)
+        black_points = np.sum(self.grid == BLACK)
+        white_points = np.sum(self.grid == WHITE)
 
         if maximizing_player:
             score = white_points - black_points
@@ -157,7 +160,8 @@ class Board:
         clone.grid = self.grid.copy()
         return clone
 
-    def minimax(self, depth, current_turn, no_valid_move_counter):
+    def minimax(self, depth, current_turn, no_valid_move_counter, alfa, beta):
+
         max_eval = float('-inf')
         min_eval = float('inf')
 
@@ -165,16 +169,13 @@ class Board:
         if end_of_the_match or depth == 0:
             return self.evaluate_player()
 
-
         valid_moves = self.check_for_valid_show(current_turn, directions_to_check)
-
 
         if not valid_moves:
             no_valid_move_counter += 1
             if no_valid_move_counter == 2:
                 return self.evaluate_player()
-
-            return self.minimax(depth, -current_turn, no_valid_move_counter)
+            return self.minimax(depth, -current_turn, no_valid_move_counter, alfa, beta)
 
 
         if valid_moves:
@@ -184,11 +185,15 @@ class Board:
             for move in valid_moves:
                 row, col = move
                 cloned_board = self.clone_board()
-                cloned_board.grid[row, col] = 1
-                cloned_board.flip(col, row, 1, directions_to_check)
+                cloned_board.grid[row, col] = current_turn
+                cloned_board.flip(col, row, current_turn, directions_to_check)
 
-                eval = cloned_board.minimax(depth - 1, 1, no_valid_move_counter)
+                eval = cloned_board.minimax(depth - 1, -current_turn, no_valid_move_counter, alfa, beta)
                 max_eval = max(max_eval, eval)
+                alfa = max(alfa, eval)
+
+                if alfa >= beta:
+                     break
 
             return max_eval
 
@@ -196,11 +201,15 @@ class Board:
             for move in valid_moves:
                 row, col = move
                 cloned_board = self.clone_board()
-                cloned_board.grid[row, col] = 1
-                cloned_board.flip(col, row, 1, directions_to_check)
+                cloned_board.grid[row, col] = current_turn
+                cloned_board.flip(col, row, current_turn, directions_to_check)
 
-                eval = cloned_board.minimax(depth - 1, -1, no_valid_move_counter)
+                eval = cloned_board.minimax(depth - 1, -current_turn, no_valid_move_counter,alfa, beta)
                 min_eval = min(min_eval, eval)
+                beta = min(beta, eval)
+
+                if alfa >= beta:
+                    break
 
             return min_eval
 
@@ -245,14 +254,14 @@ while True:
                     break
 
                 if current_turn == 1:
-                    current_turn = -1
+                    current_turn = -current_turn
 
                     no_valid_move_counter = no_valid_move_counter + 1
                     print(no_valid_move_counter)
                     break
 
                 elif current_turn == -1:
-                    current_turn = 1
+                    current_turn = -current_turn
 
                     no_valid_move_counter = no_valid_move_counter + 1
                     print(no_valid_move_counter)
@@ -271,7 +280,7 @@ while True:
                         board.flip(col, row, current_turn, directions_to_check)
 
                         if current_turn == -1:
-                            current_turn = 1
+                            current_turn = -current_turn
 
                     else:
                         print("this move is impossible")
@@ -283,10 +292,11 @@ while True:
                 for move in valid_moves:
                     row, col = move
                     cloned_board = board.clone_board()
-                    cloned_board.grid[row, col] = 1
-                    cloned_board.flip(col, row, 1, directions_to_check)
+                    cloned_board.grid[row, col] = current_turn
+                    cloned_board.flip(col, row, current_turn, directions_to_check)
 
-                    score = cloned_board.minimax(depth, current_turn=1, no_valid_move_counter=0)
+                    score = cloned_board.minimax(depth, -current_turn, no_valid_move_counter, alfa, beta)
+
 
                     if best_score < score:
                         best_move = move
@@ -294,9 +304,9 @@ while True:
 
                 if best_move:
                     row, col = best_move
-                    board.grid[row, col] = 1
-                    board.flip(col, row, 1, directions_to_check)
-                    current_turn = -1
+                    board.grid[row, col] = current_turn
+                    board.flip(col, row, current_turn, directions_to_check)
+                    current_turn = -current_turn
 
         board.draw_board()
         board.draw_valid_move(valid_moves)
@@ -305,7 +315,7 @@ while True:
         board.draw_points(white_points, black_points, current_turn)
         if end_of_the_match:
             board = Board()
-            current_turn = 1
+            current_turn = -current_turn
             game_mode = "playing"
 
     pygame.display.flip()
