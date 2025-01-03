@@ -23,7 +23,7 @@ game_mode = "playing"
 current_turn = - 1
 
 maximizing_player = True
-depth = 2
+depth = 3
 
 alfa = float('-inf')
 beta = float('inf')
@@ -151,9 +151,7 @@ class Board:
         text_surface = self.font.render(f"WHITE:{white_points}  BLACK:{black_points}       {current_turn}", True, (255, 255, 255))
         screen.blit(text_surface, (200, 800))
 
-
     def evaluate_player(self, WEIGHTED_BOARD):
-
         black_points = np.sum(np.where(self.grid == BLACK, WEIGHTED_BOARD, 0)) #the where function replaces the value with True or False. False = 0  and True = amount on the weighted board
         white_points = np.sum(np.where(self.grid == WHITE, WEIGHTED_BOARD, 0))
 
@@ -167,11 +165,11 @@ class Board:
 
     def clone_board(self):
         clone = Board()
-        clone.grid = self.grid.copy()
+        clone.grid = np.copy(self.grid)
+
         return clone
 
     def minimax(self, depth, current_turn, no_valid_move_counter, alfa, beta):
-
         max_eval = float('-inf')
         min_eval = float('inf')
 
@@ -209,7 +207,7 @@ class Board:
                 alfa = max(alfa, eval)
 
                 if alfa >= beta:
-                     break
+                    break
 
             return max_eval
 
@@ -220,7 +218,7 @@ class Board:
                 cloned_board.grid[row, col] = current_turn
                 cloned_board.flip(col, row, current_turn, directions_to_check)
 
-                eval = cloned_board.minimax(depth - 1, -current_turn, no_valid_move_counter,alfa, beta)
+                eval = cloned_board.minimax(depth - 1, -current_turn, no_valid_move_counter, alfa, beta)
                 min_eval = min(min_eval, eval)
                 beta = min(beta, eval)
 
@@ -274,6 +272,7 @@ while True:
             if no_valid_move_counter == 2:
                 print(no_valid_move_counter)
                 end_of_the_match, white_points, black_points, winner = board.end_of_match(winner)
+                print(f"white:{white_points}   black:{black_points}       winner:{winner}")
                 board = Board()
                 current_turn = -1
                 game_mode = "playing"
@@ -325,6 +324,7 @@ while True:
 
         board.draw_points(white_points, black_points, current_turn)
         if end_of_the_match:
+            print(f"white:{white_points}   black:{black_points}       winner:{winner}")
             board = Board()
             current_turn = -1
             game_mode = "playing"
