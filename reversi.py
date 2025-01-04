@@ -45,26 +45,21 @@ class Board:
         end_of_the_match = False
         white_points = 0
         black_points = 0
-        for x in self.grid.flatten():
-            if x == 1:
-                white_points = white_points + 1
-            elif x == -1:
-                black_points = black_points + 1
 
-            else:
-                continue
+        black_points = np.sum(self.grid == BLACK)
+        white_points = np.sum(self.grid == WHITE)
 
-            if white_points < black_points:
+        if white_points < black_points:
 
-                winner = "black"
+            winner = "black"
 
-            elif white_points > black_points:
+        elif white_points > black_points:
 
-                winner = "white"
+            winner = "white"
 
-            if white_points + black_points == BOARD_SIZE * BOARD_SIZE:
+        if white_points + black_points == BOARD_SIZE * BOARD_SIZE:
 
-                end_of_the_match = True
+            end_of_the_match = True
 
         return end_of_the_match, white_points, black_points, winner
 

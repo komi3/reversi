@@ -41,6 +41,7 @@ WEIGHTED_BOARD = np.array([
 
 class Board:
     def __init__(self):
+        #Vytvoří hrací desku a základní pozice
         self.font = pygame.font.Font(None, 48)
         self.grid = np.zeros((BOARD_SIZE, BOARD_SIZE), dtype=int)
 
@@ -50,6 +51,7 @@ class Board:
         self.grid[4, 4] = WHITE
 
     def check_if_on_board(self, row, col):
+        # kontroluje zda-li je na hrací desce
 
         if 0 <= row < BOARD_SIZE and 0 <= col < BOARD_SIZE:
             return True
@@ -58,27 +60,32 @@ class Board:
 
     def end_of_match(self,winner):
 
+
         end_of_the_match = False
         white_points = 0
         black_points = 0
-        for x in self.grid.flatten():
-            if x == 1:
-                white_points = white_points + 1
-            elif x == -1:
-                black_points = black_points + 1
 
-            else:
-                continue
+        black_points = np.sum(self.grid == BLACK)
+        white_points = np.sum(self.grid == WHITE)
+        #for x in self.grid.flatten():
+            #if x == 1:
+        # white_points = white_points + 1
+        #elif x == -1:
+        # black_points = black_points + 1
 
-            if white_points < black_points:
 
-                winner = "black"
+        # else:
+                #continue
 
-            elif white_points > black_points:
+        if white_points < black_points:
 
-                winner = "white"
+            winner = "black"
 
-            if white_points + black_points == BOARD_SIZE * BOARD_SIZE:
+        elif white_points > black_points:
+
+            winner = "white"
+
+        if white_points + black_points == BOARD_SIZE * BOARD_SIZE:
 
                 end_of_the_match = True
 
@@ -167,6 +174,7 @@ class Board:
         clone = Board()
         clone.grid = np.copy(self.grid)
 
+
         return clone
 
     def minimax(self, depth, current_turn, no_valid_move_counter, alfa, beta):
@@ -190,7 +198,7 @@ class Board:
             if no_valid_move_counter == 2:
                 return self.evaluate_player(WEIGHTED_BOARD)
 
-            #return self.minimax(depth, -current_turn, no_valid_move_counter, alfa, beta)
+            return self.minimax(depth, -current_turn, no_valid_move_counter, alfa, beta)
 
         if valid_moves:
             no_valid_move_counter = 0
@@ -198,8 +206,14 @@ class Board:
         if current_turn == 1:
             for move in valid_moves:
                 row, col = move
-                cloned_board = self.clone_board()
-                cloned_board.grid[row, col] = current_turn
+                # Create a view of the grid instead of full copy
+                grid_copy = self.grid.view()
+                grid_copy[row, col] = current_turn
+                # Create  an empty board
+                cloned_board = Board.__new__(Board)
+                # Overwrites the board with the copied stayed of the game
+                cloned_board.grid = grid_copy
+                cloned_board.font = self.font  # Share font reference
                 cloned_board.flip(col, row, current_turn, directions_to_check)
 
                 eval = cloned_board.minimax(depth - 1, -current_turn, no_valid_move_counter, alfa, beta)
@@ -214,8 +228,13 @@ class Board:
         else:
             for move in valid_moves:
                 row, col = move
-                cloned_board = self.clone_board()
-                cloned_board.grid[row, col] = current_turn
+                # Create a view of the grid instead of full copy
+                grid_copy = self.grid.view()
+                grid_copy[row, col] = current_turn
+                # Create minimal board object with just the copyed grid
+                cloned_board = Board.__new__(Board)
+                cloned_board.grid = grid_copy
+                cloned_board.font = self.font  # Share font reference
                 cloned_board.flip(col, row, current_turn, directions_to_check)
 
                 eval = cloned_board.minimax(depth - 1, -current_turn, no_valid_move_counter, alfa, beta)
