@@ -347,10 +347,6 @@ while True:
         for event in pygame.event.get():
             valid_moves = board.check_for_valid_show(current_turn, directions_to_check)
 
-            if event.type == pygame.QUIT:
-                pygame.quit()
-                sys.exit()
-
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
                     pygame.quit()
