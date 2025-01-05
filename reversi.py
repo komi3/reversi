@@ -2,6 +2,7 @@ import pygame
 import sys
 import numpy as np
 
+# inicializace základních proměnných
 game_mode = "main menu"
 
 header = 30
@@ -10,23 +11,35 @@ BOARD_SIZE = 8
 SQUARE_SIZE = SCREEN_SIZE // BOARD_SIZE
 WHITE, BLACK, EMPTY = 1, -1, 0
 window_size = SCREEN_SIZE + header
+
 # directions are in vectors (y,x) for example (-1,0) ↑
+# directions jsou vektory (y,x), například (-1,0) ↑
 directions_to_check = [(-1, 0), (-1, -1), (-1, 1), (1, -1), (1, 1), (0, 1), (1, 0), (0, -1)]
 
-pygame.init()
-screen = pygame.display.set_mode((SCREEN_SIZE, window_size))
-pygame.display.set_caption('Reversi')
 winner = ""
+
 white_points = 0
 black_points = 0
+
 total_white_points = 0
 total_black_points = 0
+
 black_wins = 0
 white_wins = 0
 
+mouse_x, mouse_y = 0, 0
+play = False
+current_turn = 1
+no_valid_move_counter = 0
+
+# inicializace pygame
+pygame.init()
+screen = pygame.display.set_mode((SCREEN_SIZE, window_size))
+pygame.display.set_caption('Reversi')
 
 class Board:
     def __init__(self):
+        # Vytvoří hrací desku a základní pozice
         self.font = pygame.font.Font(None, 48)
         self.grid = np.zeros((BOARD_SIZE, BOARD_SIZE), dtype=int)
 
@@ -36,12 +49,15 @@ class Board:
         self.grid[4, 4] = WHITE
 
     def check_if_on_board(self, row, col):
+        # kontroluje, zda-li je na hrací desce
         if 0 <= row < BOARD_SIZE and 0 <= col < BOARD_SIZE:
             return True
         else:
             return False
 
     def end_of_match(self, winner):
+        # sečte celkový počet bodů obou hráčů, porovná je a určí, kdo vyhrál. Pokud je součet počtu bodů roven velikosti hrací desky, hra se ukončí.
+
         end_of_the_match = False
         white_points = 0
         black_points = 0
@@ -64,47 +80,52 @@ class Board:
         return end_of_the_match, white_points, black_points, winner
 
     def check_for_valid_show(self,current_turn, directions_to_check):
+        # tato funkce projde celou hrací desku a vybere ta pole, kde hráč může hrát, aby protihráči vzal kamínky (to je jedno z pravidel hry), potom vrátí seznam s pozicemi
         valid_moves = []
         for row in range(BOARD_SIZE):
             for col in range(BOARD_SIZE):
-
+                # zkontroluje, jestli pole je prázdné, a pokud není prázdné, přeskočí na další a pokračuje dál
                 if self.grid[row, col] != EMPTY:
                     continue
-
+                # prochází seznam se směry a postupně přičítá k pozici. Vytváří také prázdný seznam s pozicemi, které by v případě úspěšného tahu změnila na své.
                 for dx, dy in directions_to_check:
                     px, py = row + dx, col + dy
                     to_flip = []
-
-                    while self.check_if_on_board(px, py) and self.grid[px, py] != 0 and self.grid[px, py] != current_turn:
+                    # pokud je pozice na hrací desce a zároveň je to pole protihráče, přidá tuto pozici na list a přičte směr k dané pozici
+                    while self.check_if_on_board(px, py) and self.grid[px, py] == -current_turn:
                         to_flip.append([px, py])
                         px += dx
                         py += dy
+                    # pokud je na poli hráč (který zrovna hraje) a zároveň list s pozicemi, které budou změněny na hráčovo, není prázdný, přidá základní pozici na list s možnými pozicemi, které může hráč zahrát
                     if self.check_if_on_board(px, py) and self.grid[px, py] == current_turn and to_flip:
                         valid_moves.append([row, col])
                         break
         return valid_moves
 
     def flip(self,col, row, current_turn, directions_to_check):
+        # prochází list se směry a postupně přičítá k pozici. Vytváří také prázdný list s pozicemi, které by v případě úspěšného tahu změnila na své.
         for x, y in directions_to_check:
             px, py = row + y, col + x
             to_flip = []
-
-            while self.check_if_on_board(px, py) == True and self.grid[px, py] != 0 and self.grid[px, py] != current_turn:
+            # pokud je pozice na hrací desce a zároveň je to pole protihráče, přidá tuto pozici na list a přičte směr k dané pozici
+            while self.check_if_on_board(px, py) == True and self.grid[px, py] == -current_turn:
                 to_flip.append([px, py])
                 px += y
                 py += x
-
+            # pokud je na poli hráč (který zrovna hraje) a zároveň je na desce, projde celý list a všechny pozice změní na pozice, které vlastní hráč
             if self.check_if_on_board(px, py) == True and self.grid[px, py] == current_turn:
                 for px, py in to_flip:
                     self.grid[px, py] = current_turn
 
     def draw_valid_move(self,valid_moves):
+        # nakreslí kruhy tam, kde hráč může hrát podle listu s pozicemi
         for row, col in valid_moves:
             pygame.draw.circle(screen, (250, 200, 152),
                                (col * SQUARE_SIZE + SQUARE_SIZE // 2,  row * SQUARE_SIZE + SQUARE_SIZE // 2),
                                SQUARE_SIZE // 4)
 
     def draw_board(self):
+        # nakreslí hrací desku a hráče
         screen.fill((0, 128, 0))
         for row in range(BOARD_SIZE):
             for col in range(BOARD_SIZE):
@@ -120,6 +141,7 @@ class Board:
                                        SQUARE_SIZE // 2 - 5)
 
     def draw_points(self, white_points, black_points, current_turn):
+        # nakreslí body a kdo je zrovna na řadě
 
         if current_turn == 1:
             current_turn = "White"
@@ -130,7 +152,9 @@ class Board:
         text_surface = self.font.render(f"WHITE:{white_points}  BLACK:{black_points}       {current_turn}", True, (255, 255, 255))
         screen.blit(text_surface, (200, 800))
 
+
 class MainMenu:
+    # hlavní menu obrazovka
     def __init__(self):
         self.font = pygame.font.Font(None, 48)
 
@@ -177,6 +201,7 @@ class MainMenu:
 
 
 class End:
+    # obrazovka, která se ukáže po dohrání
     def __init__(self):
         self.font = pygame.font.Font(None, 48)
 
@@ -238,6 +263,7 @@ class End:
 
 
 class Stats:
+    # obrazovka, která ukazuje celkový počet bodů a výher
     def __init__(self):
         self.font = pygame.font.Font(None, 48)
 
@@ -281,11 +307,6 @@ board = Board()
 main_menu = MainMenu()
 end_screen = End()
 stats = Stats()
-
-mouse_x, mouse_y = 0, 0
-play = False
-current_turn = 1
-no_valid_move_counter = 0
 
 while True:
 
@@ -343,9 +364,7 @@ while True:
                 if event.key == pygame.K_ESCAPE:
                     pygame.quit()
                     sys.exit()
-                if event.key == pygame.K_w:
-                    board = 1
-
+            # pokud není žádná pozice možná, hraje druhý hráč, a pokud ani on nemůže hrát, hra končí
             if not valid_moves:
                 if no_valid_move_counter == 2:
                     end_of_the_match, white_points, black_points, winner = board.end_of_match(winner)
@@ -365,24 +384,20 @@ while True:
                     no_valid_move_counter = no_valid_move_counter + 1
                     print(no_valid_move_counter)
                     break
-
+            # pokud hráč může hrát, resetuje se počet kol, kde některý z hráčů nemohl hrát
             if valid_moves:
                 no_valid_move_counter = 0
 
             if event.type == pygame.MOUSEBUTTONDOWN:
+                # kliknutí se převede na pole
                 mouse_x, mouse_y = event.pos
                 row, col = mouse_y // SQUARE_SIZE, mouse_x // SQUARE_SIZE
 
-                if not valid_moves:
-                    if current_turn == 1:
-                        current_turn = -1
-                    elif current_turn == -1:
-                        current_turn = 1
-
+                # pokud je pole, na které hráč kliknul, v seznamu možných polí, změní se toto pole na jeho a spustí se funkce na převracení protihráčových polí
                 if [row, col] in valid_moves:
                     board.grid[row, col] = current_turn
                     board.flip(col, row, current_turn, directions_to_check)
-
+                    ## po odehrání hraje protihráč
                     if current_turn == 1:
                         current_turn = -1
                     elif current_turn == -1:
@@ -391,11 +406,12 @@ while True:
                 else:
                     print("this move is impossible")
 
+        # Vykreslení hrací desky
         board.draw_board()
         board.draw_valid_move(valid_moves)
         end_of_the_match, white_points, black_points, winner = board.end_of_match(winner)
-
         board.draw_points(white_points, black_points, current_turn)
+        # pokud je end_of_the_match = True, skončí hra a změní se na konečnou obrazovku
         if end_of_the_match:
             game_mode = "end_screen"
 
@@ -412,7 +428,7 @@ while True:
                     pygame.quit()
                     sys.exit()
 
-            end_screen.end_screen(white_points, black_points,  winner, mouse_x, mouse_y,total_white_points, total_black_points, white_wins, black_wins)
+            end_screen.end_screen(white_points, black_points,  winner, mouse_x, mouse_y, total_white_points, total_black_points, white_wins, black_wins)
 
             if event.type == pygame.MOUSEBUTTONDOWN:
                 mouse_x, mouse_y = pygame.mouse.get_pos()
