@@ -9,7 +9,7 @@ SQUARE_SIZE = SCREEN_SIZE // BOARD_SIZE
 WHITE, BLACK, EMPTY = 1, -1, 0
 window_size = SCREEN_SIZE + header
 
-#directions are in vectors (y,x) for example (-1,0) ↑
+# directions are in vectors (y,x) for example (-1,0) ↑
 directions_to_check = [(-1, 0), (-1, -1), (-1, 1), (1, -1), (1, 1), (0, 1), (1, 0), (0, -1)]
 
 pygame.init()
@@ -29,19 +29,20 @@ alfa = float('-inf')
 beta = float('inf')
 
 WEIGHTED_BOARD = np.array([
-            [100, -10, 10, 5, 5, 10, -10, 100],
-            [-10, -20, 1, 1, 1, 1, -20, -10],
-            [10, 1, 5, 5, 5, 5, 1, 10],
-            [5, 1, 5, 0, 0, 5, 1, 5],
-            [5, 1, 5, 0, 0, 5, 1, 5],
-            [10, 1, 5, 5, 5, 5, 1, 10],
-            [-10, -20, 1, 1, 1, 1, -20, -10],
-            [100, -10, 10, 5, 5, 10, -10, 100]
-        ])
+    [100, -10, 10, 5, 5, 10, -10, 100],
+    [-10, -20, 1, 1, 1, 1, -20, -10],
+    [10, 1, 5, 5, 5, 5, 1, 10],
+    [5, 1, 5, 0, 0, 5, 1, 5],
+    [5, 1, 5, 0, 0, 5, 1, 5],
+    [10, 1, 5, 5, 5, 5, 1, 10],
+    [-10, -20, 1, 1, 1, 1, -20, -10],
+    [100, -10, 10, 5, 5, 10, -10, 100]
+])
+
 
 class Board:
     def __init__(self):
-        #Vytvoří hrací desku a základní pozice
+
         self.font = pygame.font.Font(None, 48)
         self.grid = np.zeros((BOARD_SIZE, BOARD_SIZE), dtype=int)
 
@@ -51,15 +52,13 @@ class Board:
         self.grid[4, 4] = WHITE
 
     def check_if_on_board(self, row, col):
-        # kontroluje zda-li je na hrací desce
 
         if 0 <= row < BOARD_SIZE and 0 <= col < BOARD_SIZE:
             return True
         else:
             return False
 
-    def end_of_match(self,winner):
-
+    def end_of_match(self, winner):
 
         end_of_the_match = False
         white_points = 0
@@ -67,15 +66,14 @@ class Board:
 
         black_points = np.sum(self.grid == BLACK)
         white_points = np.sum(self.grid == WHITE)
-        #for x in self.grid.flatten():
-            #if x == 1:
+        # for x in self.grid.flatten():
+        # if x == 1:
         # white_points = white_points + 1
-        #elif x == -1:
+        # elif x == -1:
         # black_points = black_points + 1
 
-
         # else:
-                #continue
+        # continue
 
         if white_points < black_points:
 
@@ -86,12 +84,11 @@ class Board:
             winner = "white"
 
         if white_points + black_points == BOARD_SIZE * BOARD_SIZE:
-
-                end_of_the_match = True
+            end_of_the_match = True
 
         return end_of_the_match, white_points, black_points, winner
 
-    def check_for_valid_show(self,current_turn, directions_to_check):
+    def check_for_valid_show(self, current_turn, directions_to_check):
         valid_moves = []
         for row in range(BOARD_SIZE):
             for col in range(BOARD_SIZE):
@@ -103,7 +100,8 @@ class Board:
                     px, py = row + dx, col + dy
                     to_flip = []
 
-                    while self.check_if_on_board(px, py) and self.grid[px, py] != 0 and self.grid[px, py] != current_turn:
+                    while self.check_if_on_board(px, py) and self.grid[px, py] != 0 and self.grid[
+                        px, py] != current_turn:
                         to_flip.append([px, py])
                         px += dx
                         py += dy
@@ -112,12 +110,13 @@ class Board:
                         break
         return valid_moves
 
-    def flip(self,col, row, current_turn, directions_to_check):
+    def flip(self, col, row, current_turn, directions_to_check):
         for x, y in directions_to_check:
             px, py = row + y, col + x
             to_flip = []
 
-            while self.check_if_on_board(px, py) == True and self.grid[px, py] != 0 and self.grid[px, py] != current_turn:
+            while self.check_if_on_board(px, py) == True and self.grid[px, py] != 0 and self.grid[
+                px, py] != current_turn:
                 to_flip.append([px, py])
                 px += y
                 py += x
@@ -126,10 +125,10 @@ class Board:
                 for px, py in to_flip:
                     self.grid[px, py] = current_turn
 
-    def draw_valid_move(self,valid_moves):
+    def draw_valid_move(self, valid_moves):
         for row, col in valid_moves:
             pygame.draw.circle(screen, (250, 200, 152),
-                               (col * SQUARE_SIZE + SQUARE_SIZE // 2,  row * SQUARE_SIZE + SQUARE_SIZE // 2),
+                               (col * SQUARE_SIZE + SQUARE_SIZE // 2, row * SQUARE_SIZE + SQUARE_SIZE // 2),
                                SQUARE_SIZE // 4)
 
     def draw_board(self):
@@ -155,14 +154,62 @@ class Board:
             current_turn = "Black"
 
         white_points, black_points = str(white_points), str(black_points)
-        text_surface = self.font.render(f"WHITE:{white_points}  BLACK:{black_points}       {current_turn}", True, (255, 255, 255))
+        text_surface = self.font.render(f"WHITE:{white_points}  BLACK:{black_points}       {current_turn}", True,
+                                        (255, 255, 255))
         screen.blit(text_surface, (200, 800))
 
-    def evaluate_player(self, WEIGHTED_BOARD):
-        black_points = np.sum(np.where(self.grid == BLACK, WEIGHTED_BOARD, 0)) #the where function replaces the value with True or False. False = 0  and True = amount on the weighted board
+    def evaluate_player(self, WEIGHTED_BOARD, winner, valid_moves, directions_to_check, current_turn):
+
+        if winner == current_turn:
+            score = 1000000
+            return score
+
+        elif winner == -current_turn:
+            score = -1000000
+            return score
+
+        black_points = np.sum(np.where(self.grid == BLACK, WEIGHTED_BOARD,
+                                       0))  # the where function replaces the value with True or False. False = 0  and True = amount on the weighted board
         white_points = np.sum(np.where(self.grid == WHITE, WEIGHTED_BOARD, 0))
 
-        if maximizing_player:
+        score = 0
+        corners = [(0, 0), (0, 7), (7, 0), (7, 7)]
+        stable_pieces = []
+
+        for row, col in corners:
+            if self.grid[row, col] == current_turn:
+                stable_pieces.append([row, col])
+                for dx, dy in directions_to_check:
+                    nx, ny = row + dx, col + dy
+
+                    while self.check_if_on_board(nx, ny) and self.grid[nx, ny] == current_turn:
+                        around_stable_pieces = []
+                        for x, y in directions_to_check:
+                            px, py = nx + x, ny + y
+                            if not self.check_if_on_board(px, py) or self.grid[px, py] == current_turn:
+                                around_stable_pieces.append([px, py])
+                        if len(around_stable_pieces) == 8:
+                            stable_pieces.append([nx, ny])
+
+                        nx += dx
+                        ny += dy
+
+        for pieces in stable_pieces:
+            if current_turn == 1:
+                white_points += 100
+            else:
+                black_points += 100
+
+        number_of_moves = 0
+        for move in valid_moves:
+            number_of_moves += 1
+
+        if current_turn == 1:
+            white_points += (number_of_moves * 35)
+        else:
+            black_points += (number_of_moves * 35)
+
+        if current_turn == 1:
             score = white_points - black_points
             return score
 
@@ -174,7 +221,6 @@ class Board:
         clone = Board()
         clone.grid = np.copy(self.grid)
 
-
         return clone
 
     def minimax(self, depth, current_turn, no_valid_move_counter, alfa, beta):
@@ -182,8 +228,9 @@ class Board:
         min_eval = float('inf')
 
         end_of_the_match, white_points, black_points, winner = self.end_of_match("")
+        valid_moves = self.check_for_valid_show(current_turn, directions_to_check)
         if end_of_the_match or depth == 0:
-            return self.evaluate_player(WEIGHTED_BOARD)
+            return self.evaluate_player(WEIGHTED_BOARD, winner, valid_moves, directions_to_check, current_turn)
 
         valid_moves = self.check_for_valid_show(current_turn, directions_to_check)
 
@@ -196,7 +243,7 @@ class Board:
                 current_turn = -current_turn
                 no_valid_move_counter += 1
             if no_valid_move_counter == 2:
-                return self.evaluate_player(WEIGHTED_BOARD)
+                return self.evaluate_player(WEIGHTED_BOARD, winner, valid_moves, directions_to_check, current_turn)
 
             return self.minimax(depth, -current_turn, no_valid_move_counter, alfa, beta)
 
@@ -245,6 +292,7 @@ class Board:
                     break
 
             return min_eval
+
 
 board = Board()
 mouse_x, mouse_y = 0, 0
@@ -349,6 +397,7 @@ while True:
             game_mode = "playing"
 
     pygame.display.flip()
+
 
 
 
