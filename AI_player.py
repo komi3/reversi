@@ -27,6 +27,49 @@ depth = 3
 alfa = float('-inf')
 beta = float('inf')
 
+WEIGHTED_BOARD = np.array([
+    [100, -10, 10, 5, 5, 10, -10, 100],
+    [-10, -20, 1, 1, 1, 1, -20, -10],
+    [10, 1, 5, 5, 5, 5, 1, 10],
+    [5, 1, 5, 0, 0, 5, 1, 5],
+    [5, 1, 5, 0, 0, 5, 1, 5],
+    [10, 1, 5, 5, 5, 5, 1, 10],
+    [-10, -20, 1, 1, 1, 1, -20, -10],
+    [100, -10, 10, 5, 5, 10, -10, 100]
+])
+
+EARLY_GAME_BOARD = np.array([
+    [120, -20, 20, 5, 5, 20, -20, 120],
+    [-20, -40, -5, -5, -5, -5, -40, -20],
+    [20, -5, 15, 3, 3, 15, -5, 20],
+    [5, -5, 3, 3, 3, 3, -5, 5],
+    [5, -5, 3, 3, 3, 3, -5, 5],
+    [20, -5, 15, 3, 3, 15, -5, 20],
+    [-20, -40, -5, -5, -5, -5, -40, -20],
+    [120, -20, 20, 5, 5, 20, -20, 120]
+])
+
+MID_GAME_BOARD = np.array([
+    [100, -10, 8, 6, 6, 8, -10, 100],
+    [-10, -20, 1, 1, 1, 1, -20, -10],
+    [8, 1, 5, 4, 4, 5, 1, 8],
+    [6, 1, 4, 2, 2, 4, 1, 6],
+    [6, 1, 4, 2, 2, 4, 1, 6],
+    [8, 1, 5, 4, 4, 5, 1, 8],
+    [-10, -20, 1, 1, 1, 1, -20, -10],
+    [100, -10, 8, 6, 6, 8, -10, 100]
+])
+LATE_GAME_BOARD = np.array([
+    [70, 20, 20, 20, 20, 20, 20, 70],
+    [20, 10, 10, 10, 10, 10, 10, 20],
+    [20, 10, 5, 5, 5, 5, 10, 20],
+    [20, 10, 5, 2, 2, 5, 10, 20],
+    [20, 10, 5, 2, 2, 5, 10, 20],
+    [20, 10, 5, 5, 5, 5, 10, 20],
+    [20, 10, 10, 10, 10, 10, 10, 20],
+    [70, 20, 20, 20, 20, 20, 20, 70]
+])
+
 
 def get_borders(BOARD_SIZE):
     borders = []
@@ -40,16 +83,24 @@ def get_borders(BOARD_SIZE):
     return borders
 
 
-WEIGHTED_BOARD = np.array([
-    [100, -10, 10, 5, 5, 10, -10, 100],
-    [-10, -20, 1, 1, 1, 1, -20, -10],
-    [10, 1, 5, 5, 5, 5, 1, 10],
-    [5, 1, 5, 0, 0, 5, 1, 5],
-    [5, 1, 5, 0, 0, 5, 1, 5],
-    [10, 1, 5, 5, 5, 5, 1, 10],
-    [-10, -20, 1, 1, 1, 1, -20, -10],
-    [100, -10, 10, 5, 5, 10, -10, 100]
-])
+def update_weighted_board(board):
+    occupied_squares = np.count_nonzero(board.grid)
+    if occupied_squares <= 20:
+        return EARLY_GAME_BOARD
+    elif occupied_squares <= 40:
+        return MID_GAME_BOARD
+    else:
+        return LATE_GAME_BOARD
+
+
+def update_depth(board):
+    occupied_squares = np.count_nonzero(board.grid)
+    if occupied_squares <= 20:
+        return 4
+    elif occupied_squares <= 40:
+        return 3
+    else:
+        return 5
 
 
 class Board:
@@ -116,6 +167,7 @@ class Board:
         return valid_moves
 
     def flip(self, col, row, current_turn, directions_to_check):
+        self.grid[row, col] = current_turn
         for x, y in directions_to_check:
             px, py = row + y, col + x
             to_flip = []
@@ -163,46 +215,43 @@ class Board:
                                         (255, 255, 255))
         screen.blit(text_surface, (200, 800))
 
-    def evaluate_player(self, WEIGHTED_BOARD, winner, valid_moves, directions_to_check, current_turn, borders):
-
-        if winner == current_turn:
-            score = 1000000
-            return score
-
-        elif winner == -current_turn:
-            score = -1000000
-            return score
-
-        black_points = np.sum(np.where(self.grid == BLACK, WEIGHTED_BOARD,
-                                       0))  # the where function replaces the value with True or False. False = 0  and True = amount on the weighted board
-        white_points = np.sum(np.where(self.grid == WHITE, WEIGHTED_BOARD, 0))
-
+    def evaluate_player(self, winner, valid_moves, directions_to_check, current_turn, borders):
+        white_points = 0
+        black_points = 0
         score = 0
-        stable_pieces = []
+        self.WEIGHTED_BOARD = update_weighted_board(board)
+        print(update_weighted_board(board))
 
-        for row, col in borders:
-            if self.grid[row, col] == current_turn:
-                stable_pieces.append([row, col])
-                for dx, dy in directions_to_check:
-                    nx, ny = row + dx, col + dy
+        black_points = np.sum(np.where(self.grid == BLACK, self.WEIGHTED_BOARD,
+                                       0))  # the where function replaces the value with True or False. False = 0  and True = amount on the weighted board
+        white_points = np.sum(np.where(self.grid == WHITE, self.WEIGHTED_BOARD, 0))
 
-                    while self.check_if_on_board(nx, ny) and self.grid[nx, ny] == current_turn:
-                        around_stable_pieces = []
-                        for x, y in directions_to_check:
-                            px, py = nx + x, ny + y
-                            if not self.check_if_on_board(px, py) or self.grid[px, py] == current_turn:
-                                around_stable_pieces.append([px, py])
-                        if len(around_stable_pieces) == 8:
-                            stable_pieces.append([nx, ny])
+        # stable_pieces = []
 
-                        nx += dx
-                        ny += dy
+        # for row,col in borders:
+        # if self.grid[row,col] == current_turn:
+        # stable_pieces.append([row,col])
+        # for dx, dy in directions_to_check:
+        # nx, ny = row + dx, col + dy
 
-        for pieces in stable_pieces:
-            if current_turn == 1:
-                white_points += 100
-            else:
-                black_points += 100
+        # while self.check_if_on_board(nx, ny) and self.grid[nx,ny] == current_turn:
+        # around_stable_pieces = []
+        # for x,y in directions_to_check:
+        # px, py = nx + x, ny + y
+        # if not self.check_if_on_board(px,py) or self.grid[px,py] == current_turn:
+        # around_stable_pieces.append([px,py])
+        # if len(around_stable_pieces) == 8:
+        # stable_pieces.append([nx,ny])
+
+        # nx += dx
+        # ny += dy
+
+        # for pieces in stable_pieces:
+        # if current_turn == 1:
+
+        # white_points += 10
+        # else:
+        # black_points += 10
 
         number_of_moves = 0
         for move in valid_moves:
@@ -235,7 +284,7 @@ class Board:
         valid_moves = self.check_for_valid_show(current_turn, directions_to_check)
 
         if end_of_the_match or depth == 0:
-            return self.evaluate_player(WEIGHTED_BOARD, winner, valid_moves, directions_to_check, current_turn, borders)
+            return self.evaluate_player(winner, valid_moves, directions_to_check, current_turn, borders)
 
         valid_moves = self.check_for_valid_show(current_turn, directions_to_check)
 
@@ -248,8 +297,7 @@ class Board:
                 current_turn = -current_turn
                 no_valid_move_counter += 1
             if no_valid_move_counter == 2:
-                return self.evaluate_player(WEIGHTED_BOARD, winner, valid_moves, directions_to_check, current_turn,
-                                            borders)
+                return self.evaluate_player(winner, valid_moves, directions_to_check, current_turn, borders)
 
             return self.minimax(depth, -current_turn, no_valid_move_counter, alfa, beta, borders)
 
@@ -260,7 +308,8 @@ class Board:
             for move in valid_moves:
                 row, col = move
                 # Create a view of the grid instead of full copy
-                grid_copy = self.grid.view()  # or copy
+                # grid_copy = self.grid.view() # or copy
+                grid_copy = np.copy(self.grid)
                 grid_copy[row, col] = current_turn
                 # Create  an empty board
                 cloned_board = Board.__new__(Board)
@@ -294,8 +343,8 @@ class Board:
                 min_eval = min(min_eval, eval)
                 beta = min(beta, eval)
 
-                if alfa >= beta:
-                    break
+                if alfa > beta:  # More efficient pruning
+                    return alfa if current_turn == 1 else beta
 
             return min_eval
 
@@ -345,7 +394,7 @@ while True:
 
             if no_valid_move_counter == 2:
                 print(no_valid_move_counter)
-                end_of_the_match, white_points, black_points, winner = board.end_of_match(winner)
+                end_of_the_match, white_points, black_points, winner = board.end_of_match()
                 print(f"white:{white_points}   black:{black_points}       winner:{winner}")
                 board = Board()
                 current_turn = -1
@@ -373,6 +422,7 @@ while True:
             elif current_turn == 1:
                 best_move = None
                 best_score = float('-inf')
+                depth = update_depth(board)
 
                 for move in valid_moves:
                     row, col = move
@@ -404,6 +454,7 @@ while True:
             game_mode = "playing"
 
     pygame.display.flip()
+
 
 
 
