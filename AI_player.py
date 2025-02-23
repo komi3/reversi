@@ -9,7 +9,6 @@ SQUARE_SIZE = SCREEN_SIZE // BOARD_SIZE
 WHITE, BLACK, EMPTY = 1, -1, 0
 window_size = SCREEN_SIZE + header
 
-# directions are in vectors (y,x) for example (-1,0) ↑
 directions_to_check = [(-1, 0), (-1, -1), (-1, 1), (1, -1), (1, 1), (0, 1), (1, 0), (0, -1)]
 
 pygame.init()
@@ -21,12 +20,14 @@ black_points = 0
 game_mode = "playing"
 current_turn = - 1
 
+# inicializace základních proměných pro minimax algoritmus
 maximizing_player = True
 depth = 3
 
 alfa = float('-inf')
 beta = float('inf')
 
+# jak jsou hodnoceny pozice
 WEIGHTED_BOARD = np.array([
     [100, -10, 10, 5, 5, 10, -10, 100],
     [-10, -20, 1, 1, 1, 1, -20, -10],
@@ -37,7 +38,7 @@ WEIGHTED_BOARD = np.array([
     [-10, -20, 1, 1, 1, 1, -20, -10],
     [100, -10, 10, 5, 5, 10, -10, 100]
 ])
-
+# na začátku hry (0..20 [tahů])
 EARLY_GAME_BOARD = np.array([
     [120, -20, 20, 5, 5, 20, -20, 120],
     [-20, -40, -5, -5, -5, -5, -40, -20],
@@ -48,7 +49,7 @@ EARLY_GAME_BOARD = np.array([
     [-20, -40, -5, -5, -5, -5, -40, -20],
     [120, -20, 20, 5, 5, 20, -20, 120]
 ])
-
+# uprostřed hry(20..40 [tahů])
 MID_GAME_BOARD = np.array([
     [100, -10, 8, 6, 6, 8, -10, 100],
     [-10, -20, 1, 1, 1, 1, -20, -10],
@@ -59,6 +60,8 @@ MID_GAME_BOARD = np.array([
     [-10, -20, 1, 1, 1, 1, -20, -10],
     [100, -10, 8, 6, 6, 8, -10, 100]
 ])
+
+# na konci hry(40...  [tahů])
 LATE_GAME_BOARD = np.array([
     [70, 20, 20, 20, 20, 20, 20, 70],
     [20, 10, 10, 10, 10, 10, 10, 20],
@@ -93,7 +96,7 @@ def update_weighted_board(board):
         return LATE_GAME_BOARD
 
 
-def update_depth(board):
+def update_deph(board):
     occupied_squares = np.count_nonzero(board.grid)
     if occupied_squares <= 20:
         return 4
@@ -216,18 +219,26 @@ class Board:
         screen.blit(text_surface, (200, 800))
 
     def evaluate_player(self, winner, valid_moves, directions_to_check, current_turn, borders):
+        # funkce hodnotí pozici na desce
         white_points = 0
         black_points = 0
         score = 0
+        # vyvolá funkci pomocí které upravuje Weigted board(jak jsou hodnocené jednotlivé pozice) podle toho v jaké části je hra(kolik tahů bylo
+        # odehráno)
         self.WEIGHTED_BOARD = update_weighted_board(board)
-        print(update_weighted_board(board))
 
-        black_points = np.sum(np.where(self.grid == BLACK, self.WEIGHTED_BOARD,
-                                       0))  # the where function replaces the value with True or False. False = 0  and True = amount on the weighted board
+        # použije funkci np.where která změní 0 a protihráčova(podle toho jestli počítá bílé nebo černé body) pole na False a nepočítá je a
+        # hráčovo na True a počítá hodnotu která je na nich podle Weighted board a ty potom sečte pomocí funkce sum a uloží do proměné bodů
+        # které zrovna počítá
+
+        black_points = np.sum(np.where(self.grid == BLACK, self.WEIGHTED_BOARD, 0))
         white_points = np.sum(np.where(self.grid == WHITE, self.WEIGHTED_BOARD, 0))
 
-        # stable_pieces = []
+        # zde jsem se snažil zlepšit funkci tak aby podle rohovích bodů počítala kamínky které se nedají převrátit.
+        # funkce je podle mě funkční ale neviřešil jsem problé toho že hodnotila rohové a zbylé kamínky moc dobře a kvůli tomu hrála špatně
+        # chtěl bych ale toto zlepšení opravit v budoucnu
 
+        # stable_pieces = []
         # for row,col in borders:
         # if self.grid[row,col] == current_turn:
         # stable_pieces.append([row,col])
@@ -253,10 +264,11 @@ class Board:
         # else:
         # black_points += 10
 
+        # přidává body podle toho kolik je možných tahů čím více tahů tím více bodů
         number_of_moves = 0
         for move in valid_moves:
             number_of_moves += 1
-
+        # konečné sčítání bodů
         if current_turn == 1:
             white_points += (number_of_moves * 35)
         else:
@@ -271,23 +283,27 @@ class Board:
             return score
 
     def clone_board(self):
+        # funkce která kopíruje desku a vytváří z ní samostatný objekt který neovlivnuje originál
         clone = Board()
         clone.grid = np.copy(self.grid)
 
         return clone
 
     def minimax(self, depth, current_turn, no_valid_move_counter, alfa, beta, borders):
+        # nastavil jsem zákldní hodnotu ohodnocení na kladné a záporné nekonečno
         max_eval = float('-inf')
         min_eval = float('inf')
 
+        # zjistím jsetli skončila hra a valid_moves(aby funkce evaluate mohla fungovat)
         end_of_the_match, white_points, black_points, winner = self.end_of_match()
         valid_moves = self.check_for_valid_show(current_turn, directions_to_check)
-
+        # zjistím jestli algoritmus došel na konec hry nebo došel do hloubky nula
+        # pokud ano funkce vrátí konečné ohodnocení desky
         if end_of_the_match or depth == 0:
             return self.evaluate_player(winner, valid_moves, directions_to_check, current_turn, borders)
 
         valid_moves = self.check_for_valid_show(current_turn, directions_to_check)
-
+        # jestli je možné hrát a pokud ani jeden nemůže hrát ukončí hru
         if not valid_moves:
             if current_turn == 1:
                 current_turn = -current_turn
@@ -303,48 +319,56 @@ class Board:
 
         if valid_moves:
             no_valid_move_counter = 0
-
+        # minimax algoritmus hraje za bílá neboli 1
         if current_turn == 1:
             for move in valid_moves:
                 row, col = move
-                # Create a view of the grid instead of full copy
-                # grid_copy = self.grid.view() # or copy
+                # udělám kopiji stavu desky
                 grid_copy = np.copy(self.grid)
+                # tah který algoritmus zahrál načteme na hrací desku(toto je v pořádku protože hned potom je hrací deska daná do nového objektu
+                # který neovlivnuje originální hrací desku.Nejsou spuštěny žádné funkce které by ovlivnovali originální hrací desku)
                 grid_copy[row, col] = current_turn
-                # Create  an empty board
+                # vytvoříme prázdnou(bez __init__) hrací desku která neovlivnuje originální desku
                 cloned_board = Board.__new__(Board)
-                # Overwrites the board with the copied stayed of the game
+                # vloží stav hrací desky
                 cloned_board.grid = grid_copy
-                cloned_board.font = self.font  # Share font reference
+                # přidá font z __inti__ jelikož jsme tuto část neskopírovali
+                cloned_board.font = self.font
+                # zavoláme flip funkci
                 cloned_board.flip(col, row, current_turn, directions_to_check)
-
+                # zavoláme funkci minimax z kde ale změníme hloubku na hloubku -1 a změníme hráče na protihráče a naopak
+                # (pokud skončí hra nebo funkce dojde na hloubku 0 řetěz funkcí se přeruší a funkce vrátí nejlepší hodnotu)
                 eval = cloned_board.minimax(depth - 1, -current_turn, no_valid_move_counter, alfa, beta, borders)
+                # zhodnotí zdali je skore lepší než nejlepší dozatimní skore
                 max_eval = max(max_eval, eval)
+                # vyhodnoti zda-li je nový tah lepší než dozatimní nejlepší tah
                 alfa = max(alfa, eval)
-
+                # zjistíme jsetli max hráč má lepší skore než minnimální skore min hráče a pokud ano tuto větev
+                # můžeme odendat jelikož min hráč jsi ji nikdy nevybere takže není důvod dále počítat možné tahy v této větvi
                 if alfa >= beta:
                     break
-
+            # vrátí nejlepší skore max hráče v této hloupce
             return max_eval
 
         else:
             for move in valid_moves:
+                # stejné jako max jenom hledáme minimum místo maxima
                 row, col = move
-                # Create a view of the grid instead of full copy
-                grid_copy = self.grid.view()  # or copy
+
+                grid_copy = np.copy(self.grid)
                 grid_copy[row, col] = current_turn
-                # Create minimal board object with just the copyed grid
+
                 cloned_board = Board.__new__(Board)
                 cloned_board.grid = grid_copy
-                cloned_board.font = self.font  # Share font reference
+                cloned_board.font = self.font
                 cloned_board.flip(col, row, current_turn, directions_to_check)
 
                 eval = cloned_board.minimax(depth - 1, -current_turn, no_valid_move_counter, alfa, beta, borders)
                 min_eval = min(min_eval, eval)
                 beta = min(beta, eval)
 
-                if alfa > beta:  # More efficient pruning
-                    return alfa if current_turn == 1 else beta
+                if alfa >= beta:
+                    break
 
             return min_eval
 
@@ -394,8 +418,8 @@ while True:
 
             if no_valid_move_counter == 2:
                 print(no_valid_move_counter)
-                end_of_the_match, white_points, black_points, winner = board.end_of_match()
                 print(f"white:{white_points}   black:{black_points}       winner:{winner}")
+                end_of_the_match, white_points, black_points, winner = board.end_of_match(winner)
                 board = Board()
                 current_turn = -1
                 game_mode = "playing"
@@ -422,21 +446,23 @@ while True:
             elif current_turn == 1:
                 best_move = None
                 best_score = float('-inf')
-                depth = update_depth(board)
+                deph = update_deph(board)
 
                 for move in valid_moves:
                     row, col = move
+                    # naklonujeme desku s kterou potom vyvoláme minimax algoritmus
                     cloned_board = board.clone_board()
                     cloned_board.grid[row, col] = current_turn
                     cloned_board.flip(col, row, current_turn, directions_to_check)
 
                     score = cloned_board.minimax(depth, -current_turn, no_valid_move_counter, alfa, beta, borders)
-
+                    # zhodnotíme zda-li je score lepší než předchozí když ano uložíme nejlepší tah a score
                     if best_score < score:
                         best_move = move
                         best_score = score
 
                 if best_move:
+                    # potom co projdem všechny možné tahy nejlepší tah zahrajeme
                     row, col = best_move
                     board.grid[row, col] = current_turn
                     board.flip(col, row, current_turn, directions_to_check)
@@ -454,6 +480,8 @@ while True:
             game_mode = "playing"
 
     pygame.display.flip()
+
+
 
 
 
