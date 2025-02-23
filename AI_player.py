@@ -96,7 +96,7 @@ def update_weighted_board(board):
         return LATE_GAME_BOARD
 
 
-def update_deph(board):
+def update_depth(board):
     occupied_squares = np.count_nonzero(board.grid)
     if occupied_squares <= 20:
         return 4
@@ -294,10 +294,10 @@ class Board:
         max_eval = float('-inf')
         min_eval = float('inf')
 
-        # zjistím jsetli skončila hra a valid_moves(aby funkce evaluate mohla fungovat)
+        # zjistím, jsetli skončila hra a valid_moves(aby funkce evaluate mohla fungovat)
         end_of_the_match, white_points, black_points, winner = self.end_of_match()
         valid_moves = self.check_for_valid_show(current_turn, directions_to_check)
-        # zjistím jestli algoritmus došel na konec hry nebo došel do hloubky nula
+        # zjistím, jestli algoritmus došel na konec hry nebo došel do hloubky nula
         # pokud ano funkce vrátí konečné ohodnocení desky
         if end_of_the_match or depth == 0:
             return self.evaluate_player(winner, valid_moves, directions_to_check, current_turn, borders)
@@ -339,15 +339,15 @@ class Board:
                 # zavoláme funkci minimax z kde ale změníme hloubku na hloubku -1 a změníme hráče na protihráče a naopak
                 # (pokud skončí hra nebo funkce dojde na hloubku 0 řetěz funkcí se přeruší a funkce vrátí nejlepší hodnotu)
                 eval = cloned_board.minimax(depth - 1, -current_turn, no_valid_move_counter, alfa, beta, borders)
-                # zhodnotí zdali je skore lepší než nejlepší dozatimní skore
+                # zhodnotí zda-li je skore lepší než dosavadní nejlepší skore
                 max_eval = max(max_eval, eval)
-                # vyhodnoti zda-li je nový tah lepší než dozatimní nejlepší tah
+                # vyhodnoti, zda-li je nový tah lepší než dosud nejlepší tah
                 alfa = max(alfa, eval)
                 # zjistíme jsetli max hráč má lepší skore než minnimální skore min hráče a pokud ano tuto větev
-                # můžeme odendat jelikož min hráč jsi ji nikdy nevybere takže není důvod dále počítat možné tahy v této větvi
+                # můžeme odendat, jelikož min hráč jsi ji nikdy nevybere, takže není důvod dále počítat možné tahy v této větvi
                 if alfa >= beta:
                     break
-            # vrátí nejlepší skore max hráče v této hloupce
+            # vrátí nejlepší skore max hráče v této hloubce
             return max_eval
 
         else:
@@ -417,9 +417,9 @@ while True:
                     print(no_valid_move_counter)
 
             if no_valid_move_counter == 2:
+                end_of_the_match, white_points, black_points, winner = board.end_of_match()
                 print(no_valid_move_counter)
                 print(f"white:{white_points}   black:{black_points}       winner:{winner}")
-                end_of_the_match, white_points, black_points, winner = board.end_of_match(winner)
                 board = Board()
                 current_turn = -1
                 game_mode = "playing"
@@ -446,7 +446,7 @@ while True:
             elif current_turn == 1:
                 best_move = None
                 best_score = float('-inf')
-                deph = update_deph(board)
+                depth = update_depth(board)
 
                 for move in valid_moves:
                     row, col = move
