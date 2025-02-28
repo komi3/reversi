@@ -427,7 +427,6 @@ while True:
 
             if valid_moves:
                 no_valid_move_counter = 0
-
             if current_turn == -1:
                 if event.type == pygame.MOUSEBUTTONDOWN:
                     mouse_x, mouse_y = event.pos
@@ -442,6 +441,7 @@ while True:
 
                     else:
                         print("this move is impossible")
+
 
             elif current_turn == 1:
                 best_move = None
