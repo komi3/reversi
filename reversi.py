@@ -109,11 +109,11 @@ def update_weighted_board(board):
 def update_depth(board):
     occupied_squares = np.count_nonzero(board.grid)
     if occupied_squares <= 20:
-        return 3
+        return 4
     elif occupied_squares <= 40:
         return 3
     else:
-        return 3
+        return 5
 
 
 # inicializace pygame

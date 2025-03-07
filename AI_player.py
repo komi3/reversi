@@ -1,6 +1,7 @@
 import pygame
 import sys
 import numpy as np
+import random
 
 header = 30
 SCREEN_SIZE = 800
@@ -294,10 +295,10 @@ class Board:
         max_eval = float('-inf')
         min_eval = float('inf')
 
-        # zjistím, jsetli skončila hra a valid_moves(aby funkce evaluate mohla fungovat)
+        # zjistím jsetli skončila hra a valid_moves(aby funkce evaluate mohla fungovat)
         end_of_the_match, white_points, black_points, winner = self.end_of_match()
         valid_moves = self.check_for_valid_show(current_turn, directions_to_check)
-        # zjistím, jestli algoritmus došel na konec hry nebo došel do hloubky nula
+        # zjistím jestli algoritmus došel na konec hry nebo došel do hloubky nula
         # pokud ano funkce vrátí konečné ohodnocení desky
         if end_of_the_match or depth == 0:
             return self.evaluate_player(winner, valid_moves, directions_to_check, current_turn, borders)
@@ -339,15 +340,15 @@ class Board:
                 # zavoláme funkci minimax z kde ale změníme hloubku na hloubku -1 a změníme hráče na protihráče a naopak
                 # (pokud skončí hra nebo funkce dojde na hloubku 0 řetěz funkcí se přeruší a funkce vrátí nejlepší hodnotu)
                 eval = cloned_board.minimax(depth - 1, -current_turn, no_valid_move_counter, alfa, beta, borders)
-                # zhodnotí zda-li je skore lepší než dosavadní nejlepší skore
+                # zhodnotí zdali je skore lepší než nejlepší dozatimní skore
                 max_eval = max(max_eval, eval)
-                # vyhodnoti, zda-li je nový tah lepší než dosud nejlepší tah
+                # vyhodnoti zda-li je nový tah lepší než dozatimní nejlepší tah
                 alfa = max(alfa, eval)
                 # zjistíme jsetli max hráč má lepší skore než minnimální skore min hráče a pokud ano tuto větev
-                # můžeme odendat, jelikož min hráč jsi ji nikdy nevybere, takže není důvod dále počítat možné tahy v této větvi
+                # můžeme odendat jelikož min hráč jsi ji nikdy nevybere takže není důvod dále počítat možné tahy v této větvi
                 if alfa >= beta:
                     break
-            # vrátí nejlepší skore max hráče v této hloubce
+            # vrátí nejlepší skore max hráče v této hloupce
             return max_eval
 
         else:
@@ -417,8 +418,8 @@ while True:
                     print(no_valid_move_counter)
 
             if no_valid_move_counter == 2:
-                end_of_the_match, white_points, black_points, winner = board.end_of_match()
                 print(no_valid_move_counter)
+                end_of_the_match, white_points, black_points, winner = board.end_of_match()
                 print(f"white:{white_points}   black:{black_points}       winner:{winner}")
                 board = Board()
                 current_turn = -1
@@ -427,6 +428,7 @@ while True:
 
             if valid_moves:
                 no_valid_move_counter = 0
+
             if current_turn == -1:
                 if event.type == pygame.MOUSEBUTTONDOWN:
                     mouse_x, mouse_y = event.pos
@@ -442,11 +444,12 @@ while True:
                     else:
                         print("this move is impossible")
 
-
             elif current_turn == 1:
                 best_move = None
+                second_best_move = None
+                third_best_score = None
                 best_score = float('-inf')
-                depth = update_depth(board)
+                deph = update_depth(board)
 
                 for move in valid_moves:
                     row, col = move
@@ -456,14 +459,25 @@ while True:
                     cloned_board.flip(col, row, current_turn, directions_to_check)
 
                     score = cloned_board.minimax(depth, -current_turn, no_valid_move_counter, alfa, beta, borders)
-                    # zhodnotíme zda-li je score lepší než předchozí když ano uložíme nejlepší tah a score
+                    # Zhodnotíme, zda je score lepší než předchozí; když ano, uložíme nejlepší tah a score
                     if best_score < score:
+                        # Zaznamenám 3 nejlepší tahy
+                        third_best_move = second_best_move
+                        second_best_move = best_move
                         best_move = move
                         best_score = score
 
                 if best_move:
-                    # potom co projdem všechny možné tahy nejlepší tah zahrajeme
-                    row, col = best_move
+                    # Vytvořím dva listy, jeden prázdný a jeden s tahy
+                    list_of_moves = [best_move, second_best_move, third_best_move]
+                    list_of_moves_2 = []
+                    # Projdu list s tahy a přidám tahy do druhého listu, jelikož je možnost, že se náhodně vybere prázdné místo (None)
+                    for move in list_of_moves:
+                        if not move == None:
+                            list_of_moves_2.append(move)
+                    # Potom, co projdeme všechny možné tahy, nejlepší tah zahrajeme
+                    print(list_of_moves_2)
+                    row, col = random.choice(list_of_moves_2)
                     board.grid[row, col] = current_turn
                     board.flip(col, row, current_turn, directions_to_check)
                     current_turn = -current_turn
@@ -480,6 +494,7 @@ while True:
             game_mode = "playing"
 
     pygame.display.flip()
+
 
 
 
