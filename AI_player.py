@@ -21,7 +21,7 @@ black_points = 0
 game_mode = "playing"
 current_turn = - 1
 
-# inicializace základních proměných pro minimax algoritmus
+# inicializace základních proměnných pro minimax algoritmus
 maximizing_player = True
 depth = 3
 
@@ -224,20 +224,20 @@ class Board:
         white_points = 0
         black_points = 0
         score = 0
-        # vyvolá funkci pomocí které upravuje Weigted board(jak jsou hodnocené jednotlivé pozice) podle toho v jaké části je hra(kolik tahů bylo
-        # odehráno)
+        # vyvolá funkci pomocí které upravuje Weighted board (jak jsou hodnocené jednotlivé pozice) podle toho, v jaké
+        # části je hra (kolik tahů bylo odehráno)
         self.WEIGHTED_BOARD = update_weighted_board(board)
 
-        # použije funkci np.where která změní 0 a protihráčova(podle toho jestli počítá bílé nebo černé body) pole na False a nepočítá je a
-        # hráčovo na True a počítá hodnotu která je na nich podle Weighted board a ty potom sečte pomocí funkce sum a uloží do proměné bodů
-        # které zrovna počítá
+        # použije funkci np.where která změní 0 a protihráčova (podle toho, jestli počítá bílé nebo černé body) pole na
+        # False a nepočítá je a hráčovo na True a počítá hodnotu která je na nich podle Weighted board, a ty potom sečte
+        # pomocí funkce sum a uloží do proměnné bodů které zrovna počítá
 
         black_points = np.sum(np.where(self.grid == BLACK, self.WEIGHTED_BOARD, 0))
         white_points = np.sum(np.where(self.grid == WHITE, self.WEIGHTED_BOARD, 0))
 
-        # zde jsem se snažil zlepšit funkci tak aby podle rohovích bodů počítala kamínky které se nedají převrátit.
-        # funkce je podle mě funkční ale neviřešil jsem problé toho že hodnotila rohové a zbylé kamínky moc dobře a kvůli tomu hrála špatně
-        # chtěl bych ale toto zlepšení opravit v budoucnu
+        # zde jsem se snažil zlepšit funkci tak, aby podle rohových bodů počítala kamínky které se nedají převrátit
+        # funkce je podle mě funkční, ale nevyřešil jsem problém toho, že hodnotila rohové a zbylé kamínky moc dobře a
+        # kvůli tomu hrála špatně
 
         # stable_pieces = []
         # for row,col in borders:
@@ -265,7 +265,7 @@ class Board:
         # else:
         # black_points += 10
 
-        # přidává body podle toho kolik je možných tahů čím více tahů tím více bodů
+        # přidává body podle toho, kolik je možných tahů, čím více tahů tím více bodů
         number_of_moves = 0
         for move in valid_moves:
             number_of_moves += 1
@@ -291,15 +291,15 @@ class Board:
         return clone
 
     def minimax(self, depth, current_turn, no_valid_move_counter, alfa, beta, borders):
-        # nastavil jsem zákldní hodnotu ohodnocení na kladné a záporné nekonečno
+        # nastavil jsem základní hodnotu ohodnocení na kladné a záporné nekonečno
         max_eval = float('-inf')
         min_eval = float('inf')
 
-        # zjistím jsetli skončila hra a valid_moves(aby funkce evaluate mohla fungovat)
+        # zjistím jestli skončila hra a spustím také funkci valid_moves (aby funkce evaluate mohla fungovat)
         end_of_the_match, white_points, black_points, winner = self.end_of_match()
         valid_moves = self.check_for_valid_show(current_turn, directions_to_check)
         # zjistím jestli algoritmus došel na konec hry nebo došel do hloubky nula
-        # pokud ano funkce vrátí konečné ohodnocení desky
+        # pokud ano, funkce vrátí konečné ohodnocení desky
         if end_of_the_match or depth == 0:
             return self.evaluate_player(winner, valid_moves, directions_to_check, current_turn, borders)
 
@@ -320,35 +320,36 @@ class Board:
 
         if valid_moves:
             no_valid_move_counter = 0
-        # minimax algoritmus hraje za bílá neboli 1
+        # minimax algoritmus hraje za bílého neboli 1
         if current_turn == 1:
             for move in valid_moves:
                 row, col = move
-                # udělám kopiji stavu desky
+                # udělám kopii stavu desky
                 grid_copy = np.copy(self.grid)
-                # tah který algoritmus zahrál načteme na hrací desku(toto je v pořádku protože hned potom je hrací deska daná do nového objektu
-                # který neovlivnuje originální hrací desku.Nejsou spuštěny žádné funkce které by ovlivnovali originální hrací desku)
+                # tah který algoritmus zahrál načteme na hrací desku (toto je v pořádku, protože hned potom je hrací
+                # deska daná do nového objektu který neovlivnuje originální hrací desku. Nejsou spuštěny žádné funkce
+                # které by ovlivňovaly originální hrací desku)
                 grid_copy[row, col] = current_turn
-                # vytvoříme prázdnou(bez __init__) hrací desku která neovlivnuje originální desku
+                # vytvoříme prázdnou (bez __init__) hrací desku, která neovlivnuje originální desku
                 cloned_board = Board.__new__(Board)
                 # vloží stav hrací desky
                 cloned_board.grid = grid_copy
-                # přidá font z __inti__ jelikož jsme tuto část neskopírovali
+                # přidá font z __init__, jelikož jsme tuto část neskopírovali
                 cloned_board.font = self.font
                 # zavoláme flip funkci
                 cloned_board.flip(col, row, current_turn, directions_to_check)
-                # zavoláme funkci minimax z kde ale změníme hloubku na hloubku -1 a změníme hráče na protihráče a naopak
-                # (pokud skončí hra nebo funkce dojde na hloubku 0 řetěz funkcí se přeruší a funkce vrátí nejlepší hodnotu)
+                # zavoláme funkci minimax kde ale změníme hloubku na hloubku -1 a změníme hráče na protihráče a naopak
+                # (pokud skončí hra nebo funkce dojde na hloubku 0, řetěz funkcí se přeruší a funkce vrátí nejlepší hodnotu)
                 eval = cloned_board.minimax(depth - 1, -current_turn, no_valid_move_counter, alfa, beta, borders)
-                # zhodnotí zdali je skore lepší než nejlepší dozatimní skore
+                # zhodnotí zdali je skore lepší než nejlepší dosavadní skore
                 max_eval = max(max_eval, eval)
                 # vyhodnoti zda-li je nový tah lepší než dozatimní nejlepší tah
                 alfa = max(alfa, eval)
-                # zjistíme jsetli max hráč má lepší skore než minnimální skore min hráče a pokud ano tuto větev
-                # můžeme odendat jelikož min hráč jsi ji nikdy nevybere takže není důvod dále počítat možné tahy v této větvi
+                # zjistíme jestli max hráč má lepší skore než minimální skore min hráče a pokud ano, tuto větev
+                # můžeme odstranit, jelikož min hráč si ji nikdy nevybere, takže není důvod dále počítat možné tahy v této větvi
                 if alfa >= beta:
                     break
-            # vrátí nejlepší skore max hráče v této hloupce
+            # vrátí nejlepší skore max hráče v této hloubce
             return max_eval
 
         else:
@@ -449,7 +450,7 @@ while True:
                 second_best_move = None
                 third_best_score = None
                 best_score = float('-inf')
-                deph = update_depth(board)
+                depth = update_depth(board)
 
                 for move in valid_moves:
                     row, col = move
