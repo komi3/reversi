@@ -2,6 +2,7 @@ import pygame
 import sys
 import numpy as np
 import random
+import pickle
 
 header = 30
 SCREEN_SIZE = 800
@@ -9,7 +10,7 @@ BOARD_SIZE = 8
 SQUARE_SIZE = SCREEN_SIZE // BOARD_SIZE
 WHITE, BLACK, EMPTY = 1, -1, 0
 window_size = SCREEN_SIZE + header
-
+filename = "C:/Users/micha/Documents/reversi_q_table.pkl"
 directions_to_check = [(-1, 0), (-1, -1), (-1, 1), (1, -1), (1, 1), (0, 1), (1, 0), (0, -1)]
 
 pygame.init()
@@ -35,7 +36,7 @@ gamma = 0.95
 # Jak moc bude nas agent delat nahodne tahy
 epsilon = 0.5
 # Jak moc se epsilon zmensuje casem
-epsilon_decay = 0.99995
+epsilon_decay = 0.995
 min_epsilon = 0.01
 num_episodes = 1000
 
@@ -397,10 +398,81 @@ class QLearningAgent:
         self.alpha = alpha  # Learning rate
         self.gamma = gamma  # Discount factor
         self.epsilon = epsilon  # Exploration rate
+        self.epsilon_decay = 0.995
+        self.min_epsilon = 0.01
 
     def get_state_key(self, board):
         # Convert board to tuple for dictionary key
         return tuple(map(tuple, board.grid))
+
+    def train(self, num_episodes, filename):
+        agent.load_qtable(filename)
+        # Initialize tracking variables
+        total_wins = 0
+        total_losses = 0
+
+        for episode in range(num_episodes):
+            # Reset game for new episode
+            board = Board()
+            current_turn = BLACK  # Starting player
+            no_valid_move_counter = 0
+
+            while True:  # Game loop
+                # Get current state and valid moves
+                current_state = self.get_state_key(board)
+                valid_moves = board.check_for_valid_show(current_turn, directions_to_check)
+
+                if not valid_moves:
+                    if no_valid_move_counter == 1:
+                        break  # End game if both players can't move
+                    current_turn = -current_turn
+                    no_valid_move_counter += 1
+                    continue
+
+                # Reset counter if moves exist
+                no_valid_move_counter = 0
+
+                # Get action (either explore or exploit)
+                move = self.get_action(board, valid_moves)
+
+                # Make the move and get new state
+                row, col = move
+                board.grid[row, col] = current_turn
+                board.flip(col, row, current_turn, directions_to_check)
+
+                # Now get next state and valid moves AFTER the flip
+                next_state = self.get_state_key(board)
+                next_valid_moves = board.check_for_valid_show(-current_turn, directions_to_check)
+
+                # Get reward for this state
+                reward = board.evaluate_player(None, valid_moves, directions_to_check, current_turn, borders)
+
+                # Create state-action pair and learn
+                state_action = (current_state, tuple(move))
+                self.learn(state_action, reward, next_state, next_valid_moves)
+
+                # Switch players
+                current_turn = -current_turn
+
+                # Check if game is over
+                end_of_match, white_points, black_points, winner = board.end_of_match()
+                if end_of_match:
+                    # Track results
+                    if winner == "black":
+                        total_wins += 1
+                    elif winner == "white":
+                        total_losses += 1
+                    break
+
+            # Decay epsilon after each episode
+            self.epsilon = max(self.min_epsilon, self.epsilon * self.epsilon_decay)
+
+            if episode % 100 == 0:
+                print(f"Episode {episode}: Wins: {total_wins}, Losses: {total_losses}")
+
+            # Save Q-table periodically (every 100 episodes)
+
+        self.save_qtable(filename)
 
     def get_action(self, board, valid_moves):
         state = self.get_state_key(board)
@@ -423,7 +495,34 @@ class QLearningAgent:
         return best_move
 
     def learn(self, state_action, reward, next_state, next_valid_moves):
-        pass
+        # Save the reward (evaluation score) in q_table
+        self.q_table[state_action] = reward
+
+    def save_qtable(self, filename):
+        with open(filename, 'wb') as f:
+            pickle.dump(self.q_table, f)
+            print(f"saved to the file {filename}")
+
+    def load_qtable(self, filename):
+        try:
+            with open(filename, 'rb') as f:
+                self.q_table = pickle.load(f)
+                print(f"Successfully loaded Q-table from {filename}")
+                # Print some statistics about the loaded Q-table
+                print(f"Number of state-action pairs: {len(self.q_table)}")
+                # Print a sample of the Q-table (first 3 entries)
+                print("Sample of Q-table contents:")
+                for i, (state_action, value) in enumerate(self.q_table.items()):
+                    if i < 3:  # Show first 3 entries
+                        print(f"State-Action: {state_action}, Value: {value}")
+                    else:
+                        break
+
+
+        except FileNotFoundError:
+            print(f"No existing Q-table found at {filename}")
+        except Exception as e:
+            print(f"Error loading Q-table: {str(e)}")
 
 
 borders = get_borders(BOARD_SIZE)
@@ -431,10 +530,12 @@ board = Board()
 mouse_x, mouse_y = 0, 0
 play = False
 no_valid_move_counter = 0
-
+agent = QLearningAgent(alpha, gamma, epsilon)
+agent.train(num_episodes, filename)
 while True:
     if game_mode == "playing":
-        agent = QLearningAgent(alpha, gamma, epsilon)
+        agent_pro = QLearningAgent(alpha, gamma, epsilon)
+        agent_pro.load_qtable(filename)
         valid_moves = board.check_for_valid_show(current_turn, directions_to_check)
 
         for event in pygame.event.get():
@@ -452,13 +553,6 @@ while True:
             if event.type == pygame.QUIT:
                 pygame.quit()
                 sys.exit()
-
-            if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_ESCAPE:
-                    pygame.quit()
-                    sys.exit()
-                if event.key == pygame.K_w:
-                    board = 1
 
             if not valid_moves:
                 if current_turn == 1:
@@ -482,14 +576,19 @@ while True:
             if valid_moves:
                 no_valid_move_counter = 0
 
+            end_of_the_match, white_points, black_points, winner = board.end_of_match()
+
             while not end_of_the_match:
+                print(tuple(map(tuple, board.grid)), "map")
+                print(q_table, "table")
+
                 current_state = agent.get_state_key(board)
                 move = agent.get_action(board, valid_moves)
 
                 row, col = move
                 board.grid[row, col] = current_turn
                 board.flip(col, row, current_turn, directions_to_check)
-                reward = board.evaluate_player(winner, valid_moves, directions_to_check, current_turn, borders)
+                reward = board.evaluate_player(None, valid_moves, directions_to_check, current_turn, borders)
 
                 next_state = agent.get_state_key(board)
                 next_valid_moves = board.check_for_valid_show(-current_turn, directions_to_check)
@@ -498,6 +597,10 @@ while True:
                 agent.learn(state_action, reward, next_state, next_valid_moves)
 
                 current_turn = -current_turn
+            num_episodes = num_episodes - 1
+            if num_episodes == 0:
+                pygame.quit
+                sys.exit
 
         board.draw_board()
         board.draw_valid_move(valid_moves)
