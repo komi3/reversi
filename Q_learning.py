@@ -30,7 +30,7 @@ alfa = float('-inf')
 beta = float('inf')
 
 # Jak moc meni nove informace stare informace
-alpha = 0.9
+alpha = 0.5
 # Jak moc dulezite jsou dlouhodobe odmeny
 gamma = 0.95
 # Jak moc bude nas agent delat nahodne tahy
@@ -38,7 +38,7 @@ epsilon = 0.5
 # Jak moc se epsilon zmensuje casem
 epsilon_decay = 0.995
 min_epsilon = 0.01
-num_episodes = 1000
+num_episodes = 50000
 
 q_table = np.zeros((BOARD_SIZE, BOARD_SIZE), dtype=int)
 
@@ -159,6 +159,9 @@ class Board:
 
         if white_points + black_points == BOARD_SIZE * BOARD_SIZE:
             end_of_the_match = True
+
+            if white_points == black_points:
+                winner = "draw"
 
         return end_of_the_match, white_points, black_points, winner
 
@@ -410,6 +413,7 @@ class QLearningAgent:
         # Initialize tracking variables
         total_wins = 0
         total_losses = 0
+        total_draws = 0
 
         for episode in range(num_episodes):
             # Reset game for new episode
@@ -462,13 +466,15 @@ class QLearningAgent:
                         total_wins += 1
                     elif winner == "white":
                         total_losses += 1
+                    elif winner == "draw":
+                        total_draws = +1
                     break
 
             # Decay epsilon after each episode
             self.epsilon = max(self.min_epsilon, self.epsilon * self.epsilon_decay)
 
             if episode % 100 == 0:
-                print(f"Episode {episode}: Wins: {total_wins}, Losses: {total_losses}")
+                print(f"Episode {episode}: Wins: {total_wins}, Losses: {total_losses}, Draws: {total_draws}")
 
             # Save Q-table periodically (every 100 episodes)
 
@@ -476,6 +482,8 @@ class QLearningAgent:
 
     def get_action(self, board, valid_moves):
         state = self.get_state_key(board)
+        # for row in state:
+        # print( "\n", row )
 
         # Exploration: random move
         if random.random() < self.epsilon:
@@ -531,11 +539,13 @@ mouse_x, mouse_y = 0, 0
 play = False
 no_valid_move_counter = 0
 agent = QLearningAgent(alpha, gamma, epsilon)
-agent.train(num_episodes, filename)
+# agent.train( num_episodes,filename)
+AI_turn = 1
+agent_pro = QLearningAgent(alpha, gamma, 0)
+agent_pro.load_qtable(filename)
 while True:
+    pygame.display.flip()
     if game_mode == "playing":
-        agent_pro = QLearningAgent(alpha, gamma, epsilon)
-        agent_pro.load_qtable(filename)
         valid_moves = board.check_for_valid_show(current_turn, directions_to_check)
 
         for event in pygame.event.get():
@@ -578,30 +588,46 @@ while True:
 
             end_of_the_match, white_points, black_points, winner = board.end_of_match()
 
-            while not end_of_the_match:
-                print(tuple(map(tuple, board.grid)), "map")
-                print(q_table, "table")
-
-                current_state = agent.get_state_key(board)
+            if current_turn == 1:
+                # current_state = agent.get_state_key(board)
                 move = agent.get_action(board, valid_moves)
+                print(move)
 
                 row, col = move
                 board.grid[row, col] = current_turn
                 board.flip(col, row, current_turn, directions_to_check)
-                reward = board.evaluate_player(None, valid_moves, directions_to_check, current_turn, borders)
+                # reward = board.evaluate_player(None, valid_moves, directions_to_check, current_turn, borders)
 
-                next_state = agent.get_state_key(board)
-                next_valid_moves = board.check_for_valid_show(-current_turn, directions_to_check)
+                # next_state = agent.get_state_key(board)
+                # next_valid_moves = board.check_for_valid_show(-current_turn, directions_to_check)
 
-                state_action = (current_state, tuple(move))
-                agent.learn(state_action, reward, next_state, next_valid_moves)
+                # state_action = (current_state, tuple(move))
+                # agent.learn(state_action, reward, next_state, next_valid_moves)
 
                 current_turn = -current_turn
-            num_episodes = num_episodes - 1
-            if num_episodes == 0:
-                pygame.quit
-                sys.exit
+            pygame.display.flip()
 
+            if current_turn == -1:
+                if event.type == pygame.MOUSEBUTTONDOWN:
+                    # kliknutí se převede na pole
+                    mouse_x, mouse_y = event.pos
+                    row, col = mouse_y // SQUARE_SIZE, mouse_x // SQUARE_SIZE
+                    # pokud je pole, na které hráč kliknul, v seznamu možných polí, změní se toto pole na jeho a spustí se funkce na převracení protihráčových polí
+                    if [row, col] in valid_moves:
+                        board.grid[row, col] = current_turn
+                        board.flip(col, row, current_turn, directions_to_check)
+                        pygame.display.flip()
+                        ## po odehrání hraje protihráč
+                        if current_turn == 1:
+                            current_turn = -1
+                        elif current_turn == -1:
+                            current_turn = 1
+                        pygame.display.flip()
+                    else:
+                        print("this move is impossible")
+            pygame.display.flip()
+
+        pygame.display.flip()
         board.draw_board()
         board.draw_valid_move(valid_moves)
         end_of_the_match, white_points, black_points, winner = board.end_of_match()
