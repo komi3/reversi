@@ -10,7 +10,9 @@ BOARD_SIZE = 8
 SQUARE_SIZE = SCREEN_SIZE // BOARD_SIZE
 WHITE, BLACK, EMPTY = 1, -1, 0
 window_size = SCREEN_SIZE + header
-filename = "C:/Users/micha/Documents/reversi_q_table.pkl"
+# filename = "C:/Users/micha/Documents/reversi_q_table.pkl"
+# filename = "C:/Users/micha/Documents/reversi_q_table_2.pkl"
+filename = "C:/Users/micha/Documents/reversi_q_table_3.pkl"
 directions_to_check = [(-1, 0), (-1, -1), (-1, 1), (1, -1), (1, 1), (0, 1), (1, 0), (0, -1)]
 
 pygame.init()
@@ -38,7 +40,7 @@ epsilon = 0.5
 # Jak moc se epsilon zmensuje casem
 epsilon_decay = 0.995
 min_epsilon = 0.01
-num_episodes = 50000
+num_episodes = 1000
 
 q_table = np.zeros((BOARD_SIZE, BOARD_SIZE), dtype=int)
 
@@ -138,6 +140,35 @@ class Board:
             return True
         else:
             return False
+
+    def check_if_valid_moves(self, valid_moves, current_turn):
+        no_valid_move_counter = 0
+        if not valid_moves:
+            if current_turn == 1:
+                current_turn = -current_turn
+                no_valid_move_counter += 1
+                print(no_valid_move_counter)
+            elif current_turn == -1:
+                current_turn = -current_turn
+                no_valid_move_counter += 1
+                print(no_valid_move_counter)
+
+        valid_moves = self.check_for_valid_show
+
+        if not valid_moves:
+            if current_turn == 1:
+                current_turn = -current_turn
+                no_valid_move_counter += 1
+                print(no_valid_move_counter)
+            elif current_turn == -1:
+                current_turn = -current_turn
+                no_valid_move_counter += 1
+                print(no_valid_move_counter)
+
+        if valid_moves:
+            no_valid_move_counter = 0
+
+        return no_valid_move_counter, current_turn
 
     def end_of_match(self):
         winner = None
@@ -423,20 +454,43 @@ class QLearningAgent:
 
             while True:  # Game loop
                 # Get current state and valid moves
-                current_state = self.get_state_key(board)
                 valid_moves = board.check_for_valid_show(current_turn, directions_to_check)
+                current_state = self.get_state_key(board)
+
+                if no_valid_move_counter == 2:
+                    end_of_match, white_points, black_points, winner = board.end_of_match()
+                    if end_of_match:
+                        if winner == "black":
+                            total_wins += 1
+                        elif winner == "white":
+                            total_losses += 1
+                        elif winner == "draw":
+                            total_draws += 1
+                    break
 
                 if not valid_moves:
-                    if no_valid_move_counter == 1:
-                        break  # End game if both players can't move
-                    current_turn = -current_turn
                     no_valid_move_counter += 1
-                    continue
+                    current_turn = -current_turn
+                    if no_valid_move_counter == 2:
+                        # end_of_match, white_points, black_points, winner = board.end_of_match()
+                        if end_of_match:
+                            if winner == "black":
+                                total_wins += 1
+                            elif winner == "white":
+                                total_losses += 1
+                            elif winner == "draw":
+                                total_draws += 1
+                            break
+                    continue  # Go to next turn
 
-                # Reset counter if moves exist
+                # If there are valid moves, reset the counter
                 no_valid_move_counter = 0
 
-                # Get action (either explore or exploit)
+                move = self.get_action(board, valid_moves)
+                # ... rest of your code ...
+
+                no_valid_move_counter = 0
+
                 move = self.get_action(board, valid_moves)
 
                 # Make the move and get new state
@@ -467,7 +521,7 @@ class QLearningAgent:
                     elif winner == "white":
                         total_losses += 1
                     elif winner == "draw":
-                        total_draws = +1
+                        total_draws += 1
                     break
 
             # Decay epsilon after each episode
@@ -503,8 +557,18 @@ class QLearningAgent:
         return best_move
 
     def learn(self, state_action, reward, next_state, next_valid_moves):
+
         # Save the reward (evaluation score) in q_table
-        self.q_table[state_action] = reward
+        if next_valid_moves:
+            next_q_values = [self.q_table.get((next_state, tuple(next_move)), 0) for next_move in next_valid_moves]
+            if next_q_values:
+                next_max = max(next_q_values)
+            else:
+                next_max = 0
+        else:
+            next_max = 0
+        self.q_table[state_action] = self.q_table.get(state_action, 0) + self.alpha * (
+                    reward + self.gamma * next_max - self.q_table.get(state_action, 0))
 
     def save_qtable(self, filename):
         with open(filename, 'wb') as f:
@@ -539,7 +603,7 @@ mouse_x, mouse_y = 0, 0
 play = False
 no_valid_move_counter = 0
 agent = QLearningAgent(alpha, gamma, epsilon)
-# agent.train( num_episodes,filename)
+#agent.train(num_episodes, filename)
 AI_turn = 1
 agent_pro = QLearningAgent(alpha, gamma, 0)
 agent_pro.load_qtable(filename)
@@ -589,6 +653,20 @@ while True:
             end_of_the_match, white_points, black_points, winner = board.end_of_match()
 
             if current_turn == 1:
+                valid_moves = board.check_for_valid_show(current_turn, directions_to_check)
+                no_valid_move_counter, current_turn = board.check_if_valid_moves(valid_moves, current_turn)
+                if no_valid_move_counter == 2:
+                    print(no_valid_move_counter)
+                    end_of_the_match, white_points, black_points, winner = board.end_of_match()
+                    print(f"white:{white_points}   black:{black_points}       winner:{winner}")
+                    board = Board()
+                    current_turn = -1
+                    game_mode = "playing"
+                    break
+
+                if current_turn == -1:
+                    continue
+
                 # current_state = agent.get_state_key(board)
                 move = agent.get_action(board, valid_moves)
                 print(move)
