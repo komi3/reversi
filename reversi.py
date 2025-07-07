@@ -2,6 +2,9 @@ import pygame
 import sys
 import numpy as np
 import random
+import pickle
+import time
+import threading
 
 # inicializace základních proměnných
 game_mode = "main menu"
@@ -30,6 +33,19 @@ mouse_x, mouse_y = 0, 0
 play = False
 current_turn = 1
 no_valid_move_counter = 0
+
+filename = "C:/Users/micha/Documents/reversi_q_table_3.pkl"
+# Jak moc meni nove informace stare informace
+alpha = 0.5
+# Jak moc dulezite jsou dlouhodobe odmeny
+gamma = 0.95
+# Jak moc bude nas agent delat nahodne tahy
+epsilon = 0.5
+# Jak moc se epsilon zmensuje casem
+epsilon_decay = 0.995
+min_epsilon = 0.01
+num_episodes = 10000
+
 # inicializace základních proměnných pro minimax algoritmus
 minimax_mode = False
 maximizing_player = True
@@ -117,6 +133,11 @@ def update_depth(board):
         return 4
 
 
+def load_qtable_in_thread(agent, filename, loading_done_flag):
+    agent.load_qtable(filename)
+    loading_done_flag.set()  # Signal that loading is done
+
+
 # inicializace pygame
 pygame.init()
 screen = pygame.display.set_mode((SCREEN_SIZE, window_size))
@@ -140,6 +161,34 @@ class Board:
             return True
         else:
             return False
+
+    def check_if_valid_moves(self, valid_moves, current_turn,no_valid_move_counter):
+        if not valid_moves:
+            if current_turn == 1:
+                current_turn = -current_turn
+                no_valid_move_counter += 1
+                print(no_valid_move_counter)
+            elif current_turn == -1:
+                current_turn = -current_turn
+                no_valid_move_counter += 1
+                print(no_valid_move_counter)
+
+        valid_moves = self.check_for_valid_show
+
+        if not valid_moves:
+            if current_turn == 1:
+                current_turn = -current_turn
+                no_valid_move_counter += 1
+                print(no_valid_move_counter)
+            elif current_turn == -1:
+                current_turn = -current_turn
+                no_valid_move_counter += 1
+                print(no_valid_move_counter)
+
+        if valid_moves:
+            no_valid_move_counter = 0
+
+        return no_valid_move_counter, current_turn
 
     def end_of_match(self):
         winner = None
@@ -244,7 +293,7 @@ class Board:
         white_points = 0
         black_points = 0
         score = 0
-        #vyvolá funkci pomocí které upravuje Weighted board (jak jsou hodnocené jednotlivé pozice) podle toho,
+        # vyvolá funkci pomocí které upravuje Weighted board (jak jsou hodnocené jednotlivé pozice) podle toho,
         # v jaké části je hra (kolik tahů bylo odehráno)
         self.WEIGHTED_BOARD = update_weighted_board(board)
 
@@ -393,6 +442,177 @@ class Board:
                     break
 
             return min_eval
+
+
+class QLearningAgent:
+    def __init__(self, alpha, gamma, epsilon):
+        self.q_table = {}  # Dictionary for state-action pairs
+        self.alpha = alpha  # Learning rate
+        self.gamma = gamma  # Discount factor
+        self.epsilon = epsilon  # Exploration rate
+        self.epsilon_decay = 0.995
+        self.min_epsilon = 0.01
+
+    def get_state_key(self, board):
+        # Convert board to tuple for dictionary key
+        return tuple(map(tuple, board.grid))
+
+    def train(self, num_episodes, filename):
+        agent.load_qtable(filename)
+        # Initialize tracking variables
+        total_wins = 0
+        total_losses = 0
+        total_draws = 0
+
+        for episode in range(num_episodes):
+            # Reset game for new episode
+            board = Board()
+            current_turn = BLACK  # Starting player
+            no_valid_move_counter = 0
+
+            while True:  # Game loop
+                # Get current state and valid moves
+                valid_moves = board.check_for_valid_show(current_turn, directions_to_check)
+                current_state = self.get_state_key(board)
+
+                if no_valid_move_counter == 2:
+                    end_of_match, white_points, black_points, winner = board.end_of_match()
+                    if end_of_match:
+                        if winner == "black":
+                            total_wins += 1
+                        elif winner == "white":
+                            total_losses += 1
+                        elif winner == "draw":
+                            total_draws += 1
+                    break
+
+                if not valid_moves:
+                    no_valid_move_counter += 1
+                    current_turn = -current_turn
+                    if no_valid_move_counter == 2:
+                        # end_of_match, white_points, black_points, winner = board.end_of_match()
+                        if end_of_match:
+                            if winner == "black":
+                                total_wins += 1
+                            elif winner == "white":
+                                total_losses += 1
+                            elif winner == "draw":
+                                total_draws += 1
+                            break
+                    continue  # Go to next turn
+
+                # If there are valid moves, reset the counter
+                no_valid_move_counter = 0
+
+                move = self.get_action(board, valid_moves)
+                # ... rest of your code ...
+
+                no_valid_move_counter = 0
+
+                move = self.get_action(board, valid_moves)
+
+                # Make the move and get new state
+                row, col = move
+                board.grid[row, col] = current_turn
+                board.flip(col, row, current_turn, directions_to_check)
+
+                # Now get next state and valid moves AFTER the flip
+                next_state = self.get_state_key(board)
+                next_valid_moves = board.check_for_valid_show(-current_turn, directions_to_check)
+
+                # Get reward for this state
+                reward = board.evaluate_player(None, valid_moves, directions_to_check, current_turn, borders)
+
+                # Create state-action pair and learn
+                state_action = (current_state, tuple(move))
+                self.learn(state_action, reward, next_state, next_valid_moves)
+
+                # Switch players
+                current_turn = -current_turn
+
+                # Check if game is over
+                end_of_match, white_points, black_points, winner = board.end_of_match()
+                if end_of_match:
+                    # Track results
+                    if winner == "black":
+                        total_wins += 1
+                    elif winner == "white":
+                        total_losses += 1
+                    elif winner == "draw":
+                        total_draws += 1
+                    break
+
+            # Decay epsilon after each episode
+            self.epsilon = max(self.min_epsilon, self.epsilon * self.epsilon_decay)
+
+            if episode % 100 == 0:
+                print(f"Episode {episode}: Wins: {total_wins}, Losses: {total_losses}, Draws: {total_draws}")
+
+            # Save Q-table periodically (every 100 episodes)
+
+        self.save_qtable(filename)
+
+    def get_action(self, board, valid_moves):
+        state = self.get_state_key(board)
+        # for row in state:
+        # print( "\n", row )
+
+        # Exploration: random move
+        if random.random() < self.epsilon:
+            return random.choice(valid_moves)
+
+        # Exploitation: best known move
+        best_value = float('-inf')
+        best_move = random.choice(valid_moves)  # Default
+
+        for move in valid_moves:
+            state_action = (state, tuple(move))
+            value = self.q_table.get(state_action, 0)
+            if value > best_value:
+                best_value = value
+                best_move = move
+
+        return best_move
+
+    def learn(self, state_action, reward, next_state, next_valid_moves):
+
+        # Save the reward (evaluation score) in q_table
+        if next_valid_moves:
+            next_q_values = [self.q_table.get((next_state, tuple(next_move)), 0) for next_move in next_valid_moves]
+            if next_q_values:
+                next_max = max(next_q_values)
+            else:
+                next_max = 0
+        else:
+            next_max = 0
+        self.q_table[state_action] = self.q_table.get(state_action, 0) + self.alpha * (
+                    reward + self.gamma * next_max - self.q_table.get(state_action, 0))
+
+    def save_qtable(self, filename):
+        with open(filename, 'wb') as f:
+            pickle.dump(self.q_table, f)
+            print(f"saved to the file {filename}")
+
+    def load_qtable(self, filename):
+        try:
+            with open(filename, 'rb') as f:
+                self.q_table = pickle.load(f)
+                print(f"Successfully loaded Q-table from {filename}")
+                # Print some statistics about the loaded Q-table
+                print(f"Number of state-action pairs: {len(self.q_table)}")
+                # Print a sample of the Q-table (first 3 entries)
+                print("Sample of Q-table contents:")
+                for i, (state_action, value) in enumerate(self.q_table.items()):
+                    if i < 3:  # Show first 3 entries
+                        print(f"State-Action: {state_action}, Value: {value}")
+                    else:
+                        break
+
+
+        except FileNotFoundError:
+            print(f"No existing Q-table found at {filename}")
+        except Exception as e:
+            print(f"Error loading Q-table: {str(e)}")
 
 
 class MainMenu:
@@ -546,6 +766,23 @@ class Stats:
         return back, play_again
 
 
+class Loading_screen:
+    def __init__(self):
+        self.font = pygame.font.Font(None, 48)
+        self.loading_text_list = ["loading", "loading.", "loading..", "loading..."]
+
+    def loading(self, loading_done_flag):
+        while not loading_done_flag.is_set():
+            for text in self.loading_text_list:
+                if loading_done_flag.is_set():
+                    break  # Exit immediately if loading is done
+                screen.fill((0, 0, 0))
+                text_surface = self.font.render(text, True, (255, 255, 255))
+                screen.blit(text_surface, (SCREEN_SIZE // 4, window_size // 4))
+                pygame.display.flip()
+                pygame.time.wait(300)
+
+
 class AI:
     def __init__(self):
         self.font = pygame.font.Font(None, 48)
@@ -553,6 +790,7 @@ class AI:
     def AI_menu(self):
         screen.fill((0, 0, 0))
         minimax = False
+        Q_learning = False
         back = False
 
         button_rect = pygame.Rect(SCREEN_SIZE // 3, window_size // 2, SCREEN_SIZE // 3, 50)
@@ -562,17 +800,24 @@ class AI:
 
         button_rect2 = pygame.Rect(SCREEN_SIZE // 3, window_size // 2 + 60, SCREEN_SIZE // 3, 50)
         pygame.draw.rect(screen, (173, 216, 230), button_rect2)
-        button_text2 = self.font.render("Back", True, (0, 0, 0))
+        button_text2 = self.font.render("Q_learning", True, (0, 0, 0))
         screen.blit(button_text2, (button_rect2.x + 10, button_rect2.y + 10))
+
+        button_rect3 = pygame.Rect(SCREEN_SIZE // 3, window_size // 2 + 120, SCREEN_SIZE // 3, 50)
+        pygame.draw.rect(screen, (173, 216, 230), button_rect3)
+        button_text3 = self.font.render("Back", True, (0, 0, 0))
+        screen.blit(button_text3, (button_rect3.x + 10, button_rect3.y + 10))
 
         if button_rect.collidepoint((mouse_x, mouse_y)):
             minimax = True
         elif button_rect2.collidepoint((mouse_x, mouse_y)):
+            Q_learning = True
+        elif button_rect3.collidepoint((mouse_x, mouse_y)):
             back = True
 
         pygame.display.flip()
 
-        return minimax, back
+        return minimax, back, Q_learning
 
 
 board = Board()
@@ -580,7 +825,15 @@ main_menu = MainMenu()
 end_screen = End()
 stats = Stats()
 Ai_screen = AI()
+loading_screen = Loading_screen()
+last_mode = ""
 borders = get_borders(BOARD_SIZE)
+load_Q_table = False
+agent = QLearningAgent(alpha, gamma, 0)
+AI_turn = 1
+Q_table_lock = False
+loading_done_flag = threading.Event()
+
 while True:
 
     if game_mode == "main menu":
@@ -615,7 +868,121 @@ while True:
                     pygame.quit()
                     sys.exit()
 
+    if game_mode == "Q_learning":
+        if last_mode != "Q_learning":
+            last_mode = "Q_learning"
+
+        if load_Q_table and Q_table_lock == False:
+            thread = threading.Thread(target=load_qtable_in_thread, args=(agent, filename, loading_done_flag))
+            thread.start()
+            loading_screen.loading(loading_done_flag)
+            thread.join()
+
+            # agent.load_qtable(filename)
+            Q_table_lock = True
+            print(load_Q_table)
+
+        valid_moves = board.check_for_valid_show(current_turn, directions_to_check)
+
+        for event in pygame.event.get():
+            valid_moves = board.check_for_valid_show(current_turn, directions_to_check)
+
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE:
+                    pygame.quit()
+                    sys.exit()
+
+            if not valid_moves:
+                if current_turn == 1:
+                    current_turn = -current_turn
+                    no_valid_move_counter += 1
+                    print(no_valid_move_counter)
+                elif current_turn == -1:
+                    current_turn = -current_turn
+                    no_valid_move_counter += 1
+                    print(no_valid_move_counter)
+
+            if no_valid_move_counter == 2:
+                print(no_valid_move_counter)
+                end_of_the_match, white_points, black_points, winner = board.end_of_match()
+                print(f"white:{white_points}   black:{black_points}       winner:{winner}")
+                game_mode = "end_screen"
+
+            if valid_moves:
+                no_valid_move_counter = 0
+
+            end_of_the_match, white_points, black_points, winner = board.end_of_match()
+
+            if current_turn == 1:
+                valid_moves = board.check_for_valid_show(current_turn, directions_to_check)
+                no_valid_move_counter, current_turn = board.check_if_valid_moves(valid_moves, current_turn, no_valid_move_counter)
+                if no_valid_move_counter == 2:
+                    print(no_valid_move_counter)
+                    end_of_the_match, white_points, black_points, winner = board.end_of_match()
+                    print(f"white:{white_points}   black:{black_points}       winner:{winner}")
+                    game_mode = "end_screen"
+
+                if current_turn == -1:
+                    continue
+
+                # current_state = agent.get_state_key(board)
+                move = agent.get_action(board, valid_moves)
+                print(move)
+
+                row, col = move
+                board.grid[row, col] = current_turn
+                board.flip(col, row, current_turn, directions_to_check)
+                # reward = board.evaluate_player(None, valid_moves, directions_to_check, current_turn, borders)
+
+                # next_state = agent.get_state_key(board)
+                # next_valid_moves = board.check_for_valid_show(-current_turn, directions_to_check)
+
+                # state_action = (current_state, tuple(move))
+                # agent.learn(state_action, reward, next_state, next_valid_moves)
+
+                current_turn = -current_turn
+            pygame.display.flip()
+
+            if current_turn == -1:
+                if event.type == pygame.MOUSEBUTTONDOWN:
+                    # kliknutí se převede na pole
+                    mouse_x, mouse_y = event.pos
+                    row, col = mouse_y // SQUARE_SIZE, mouse_x // SQUARE_SIZE
+                    # pokud je pole, na které hráč kliknul, v seznamu možných polí, změní se toto pole na jeho a spustí se funkce na převracení protihráčových polí
+                    if [row, col] in valid_moves:
+                        board.grid[row, col] = current_turn
+                        board.flip(col, row, current_turn, directions_to_check)
+                        pygame.display.flip()
+                        ## po odehrání hraje protihráč
+                        if current_turn == 1:
+                            current_turn = -1
+                        elif current_turn == -1:
+                            current_turn = 1
+                        pygame.display.flip()
+                    else:
+                        print("this move is impossible")
+
+        pygame.display.flip()
+
+        # Vykreslení hrací desky
+        board.draw_board()
+        board.draw_valid_move(valid_moves)
+        end_of_the_match, white_points, black_points, winner = board.end_of_match()
+        board.draw_points(white_points, black_points, current_turn)
+        # pokud je end_of_the_match = True, skončí hra a změní se na konečnou obrazovku
+        if end_of_the_match:
+            game_mode = "end_screen"
+
+        pygame.display.flip()
+
     if game_mode == "playing":
+        if last_mode != "playing":
+            last_mode = "playing"
+
         valid_moves = board.check_for_valid_show(current_turn, directions_to_check)
 
         for event in pygame.event.get():
@@ -658,7 +1025,6 @@ while True:
             if valid_moves:
                 no_valid_move_counter = 0
 
-
             if minimax_mode and current_turn == 1:
                 # minimax algoritmus hraje za bílého neboli 1
                 best_move = None
@@ -677,7 +1043,7 @@ while True:
 
                     score = cloned_board.minimax(depth, -current_turn, no_valid_move_counter, alfa, beta, borders)
 
-                    #zhodnotíme zda-li je score lepší než předchozí když ano uložíme nejlepší tah a score
+                    # zhodnotíme zda-li je score lepší než předchozí když ano uložíme nejlepší tah a score
                     if best_score < score:
                         third_best_move = second_best_move
                         second_best_move = best_move
@@ -718,6 +1084,7 @@ while True:
                     else:
                         print("this move is impossible")
 
+            pygame.display.flip()
 
         # Vykreslení hrací desky
         board.draw_board()
@@ -754,7 +1121,7 @@ while True:
                 if play_again:
                     board = Board()
                     current_turn = BLACK
-                    game_mode = "playing"
+                    game_mode = last_mode
                 elif show_game:
                     game_mode = "playing"
 
@@ -786,7 +1153,7 @@ while True:
                 if play_again:
                     board = Board()
                     current_turn = BLACK
-                    game_mode = "playing"
+                    game_mode = last_mode
 
                 if back:
                     game_mode = "main menu"
@@ -805,7 +1172,7 @@ while True:
             Ai_screen.AI_menu()
             if event.type == pygame.MOUSEBUTTONDOWN:
                 mouse_x, mouse_y = pygame.mouse.get_pos()
-                minimax, back = Ai_screen.AI_menu()
+                minimax, back, Q_learning = Ai_screen.AI_menu()
 
                 if minimax:
                     minimax_mode = True
@@ -817,3 +1184,17 @@ while True:
                 elif back:
                     game_mode = "main menu"
 
+                elif Q_learning:
+                    current_turn = -1
+                    game_mode = "Q_learning"
+                    if load_Q_table == False:
+                        load_Q_table = True
+                    print("Q_learning")
+
+# udelat nove mody ...minimax,q_learning,playing
+# if q_learning mode:
+# .... load q_table
+# ... it shoud triger  when 1 [White]
+# ...q_learning algoritm activates
+# else:
+# ...normal game
