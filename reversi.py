@@ -162,7 +162,7 @@ class Board:
         else:
             return False
 
-    def check_if_valid_moves(self, valid_moves, current_turn,no_valid_move_counter):
+    def check_if_valid_moves(self, valid_moves, current_turn, no_valid_move_counter):
         if not valid_moves:
             if current_turn == 1:
                 current_turn = -current_turn
@@ -626,28 +626,38 @@ class MainMenu:
         stats_mode = False
         Ai = False
         end_game = False
+        settings = False
+        font_menu = pygame.font.Font(None, 80)
 
         screen.fill((0, 0, 0))
 
-        button_rect = pygame.Rect(SCREEN_SIZE // 3, window_size // 2, SCREEN_SIZE // 3, 50)
+        text_surface = font_menu.render("REVERSI", True, (255, 255, 255))
+        screen.blit(text_surface, (SCREEN_SIZE // 3, window_size // 5))
+
+        button_rect = pygame.Rect(SCREEN_SIZE // 3, window_size // 2 - 120, SCREEN_SIZE // 3, 50)
         pygame.draw.rect(screen, (173, 216, 230), button_rect)
         button_text = self.font.render("Play", True, (0, 0, 0))
         screen.blit(button_text, (button_rect.x + 10, button_rect.y + 10))
 
-        button_rect2 = pygame.Rect(SCREEN_SIZE // 3, window_size // 2 + 60, SCREEN_SIZE // 3, 50)
+        button_rect2 = pygame.Rect(SCREEN_SIZE // 3, window_size // 2 - 60, SCREEN_SIZE // 3, 50)
         pygame.draw.rect(screen, (173, 216, 230), button_rect2)
         button_text2 = self.font.render("AI", True, (0, 0, 0))
         screen.blit(button_text2, (button_rect2.x + 10, button_rect2.y + 10))
 
-        button_rect3 = pygame.Rect(SCREEN_SIZE // 3, window_size // 2 + 120, SCREEN_SIZE // 3, 50)
+        button_rect3 = pygame.Rect(SCREEN_SIZE // 3, window_size // 2, SCREEN_SIZE // 3, 50)
         pygame.draw.rect(screen, (173, 216, 230), button_rect3)
         button_text3 = self.font.render("Stats", True, (0, 0, 0))
         screen.blit(button_text3, (button_rect3.x + 10, button_rect3.y + 10))
 
-        button_rect4 = pygame.Rect(SCREEN_SIZE // 3, window_size // 2 + 180, SCREEN_SIZE // 3, 50)
+        button_rect4 = pygame.Rect(SCREEN_SIZE // 3, window_size // 2 + 60, SCREEN_SIZE // 3, 50)
         pygame.draw.rect(screen, (173, 216, 230), button_rect4)
-        button_text4 = self.font.render("Quit", True, (0, 0, 0))
+        button_text4 = self.font.render("Settings", True, (0, 0, 0))
         screen.blit(button_text4, (button_rect4.x + 10, button_rect4.y + 10))
+
+        button_rect5 = pygame.Rect(SCREEN_SIZE // 3, window_size // 2 + 120, SCREEN_SIZE // 3, 50)
+        pygame.draw.rect(screen, (173, 216, 230), button_rect5)
+        button_text5 = self.font.render("Quit", True, (0, 0, 0))
+        screen.blit(button_text5, (button_rect5.x + 10, button_rect5.y + 10))
 
         if button_rect.collidepoint((mouse_x, mouse_y)):
             play = True
@@ -656,10 +666,12 @@ class MainMenu:
         elif button_rect3.collidepoint((mouse_x, mouse_y)):
             stats_mode = True
         elif button_rect4.collidepoint((mouse_x, mouse_y)):
+            settings = True
+        elif button_rect5.collidepoint((mouse_x, mouse_y)):
             end_game = True
 
         pygame.display.flip()
-        return play, Ai, stats_mode, end_game
+        return play, Ai, stats_mode, end_game, settings
 
 
 class End:
@@ -724,13 +736,63 @@ class End:
         return play_again, show_game, stats_mode, total_black_points, total_white_points, white_wins, black_wins, back
 
 
-class Stats:
+class Stats_after_game:
     # obrazovka, která ukazuje celkový počet bodů a výher
     def __init__(self):
         self.font = pygame.font.Font(None, 48)
 
     def stats(self, white_wins, black_wins, total_white_points, total_black_points, screen, mouse_x, mouse_y):
         play_again = False
+        back = False
+        main_menu = False
+
+        screen.fill((0, 0, 0))
+        white_wins, black_wins, total_white_points, total_black_points = (str(white_wins), str(black_wins),
+                                                                          str(total_white_points),
+                                                                          str(total_black_points))
+        text_surface = self.font.render(f"White  wins:{white_wins}     Black wins:{black_wins}", True,
+                                        (255, 255, 255))
+        screen.blit(text_surface, (SCREEN_SIZE // 4, window_size // 4))
+        text_surface2 = self.font.render(
+            f"White total points:{total_white_points}      Black total points:{total_black_points} ", True,
+            (255, 255, 255))
+        screen.blit(text_surface2, (SCREEN_SIZE // 20, window_size // 5))
+
+        button_rect = pygame.Rect(SCREEN_SIZE // 3, window_size // 2 + 60, SCREEN_SIZE // 3, 50)
+        pygame.draw.rect(screen, (173, 216, 230), button_rect)
+        button_text = self.font.render("Play Again", True, (0, 0, 0))
+        screen.blit(button_text, (button_rect.x + 10, button_rect.y + 10))
+
+        button_rect2 = pygame.Rect(SCREEN_SIZE // 3, window_size // 2 + 120, SCREEN_SIZE // 3, 50)
+        pygame.draw.rect(screen, (173, 216, 230), button_rect2)
+        button_text2 = self.font.render("Back", True, (0, 0, 0))
+        screen.blit(button_text2, (button_rect2.x + 10, button_rect2.y + 10))
+
+        button_rect3 = pygame.Rect(SCREEN_SIZE // 3, window_size // 2, SCREEN_SIZE // 3, 50)
+        pygame.draw.rect(screen, (173, 216, 230), button_rect3)
+        button_text3 = self.font.render("Main menu", True, (0, 0, 0))
+        screen.blit(button_text3, (button_rect3.x + 10, button_rect3.y + 10))
+
+        if button_rect.collidepoint((mouse_x, mouse_y)):
+            play_again = True
+
+        elif button_rect2.collidepoint((mouse_x, mouse_y)):
+            back = True
+
+        elif button_rect3.collidepoint((mouse_x, mouse_y)):
+            main_menu = True
+
+        pygame.display.flip()
+
+        return back, play_again, main_menu
+
+
+class Stats_menu:
+    # obrazovka, která ukazuje celkový počet bodů a výher
+    def __init__(self):
+        self.font = pygame.font.Font(None, 48)
+
+    def stats(self, white_wins, black_wins, total_white_points, total_black_points, screen, mouse_x, mouse_y):
         back = False
 
         screen.fill((0, 0, 0))
@@ -747,23 +809,15 @@ class Stats:
 
         button_rect = pygame.Rect(SCREEN_SIZE // 3, window_size // 2 + 120, SCREEN_SIZE // 3, 50)
         pygame.draw.rect(screen, (173, 216, 230), button_rect)
-        button_text = self.font.render("Play Again", True, (0, 0, 0))
+        button_text = self.font.render("Back", True, (0, 0, 0))
         screen.blit(button_text, (button_rect.x + 10, button_rect.y + 10))
 
-        button_rect2 = pygame.Rect(SCREEN_SIZE // 3, window_size // 2 + 180, SCREEN_SIZE // 3, 50)
-        pygame.draw.rect(screen, (173, 216, 230), button_rect2)
-        button_text2 = self.font.render("Back", True, (0, 0, 0))
-        screen.blit(button_text2, (button_rect2.x + 10, button_rect2.y + 10))
-
         if button_rect.collidepoint((mouse_x, mouse_y)):
-            play_again = True
-
-        elif button_rect2.collidepoint((mouse_x, mouse_y)):
             back = True
 
         pygame.display.flip()
 
-        return back, play_again
+        return back
 
 
 class Loading_screen:
@@ -781,6 +835,12 @@ class Loading_screen:
                 screen.blit(text_surface, (SCREEN_SIZE // 2.5, window_size // 2.3))
                 pygame.display.flip()
                 pygame.time.wait(300)
+
+
+class Settings:
+    def __init__(self):
+        screen.fill((0, 0, 0))
+
 
 class AI:
     def __init__(self):
@@ -822,7 +882,8 @@ class AI:
 board = Board()
 main_menu = MainMenu()
 end_screen = End()
-stats = Stats()
+stats_menu = Stats_menu()
+stats_after_game = Stats_after_game()
 Ai_screen = AI()
 loading_screen = Loading_screen()
 last_mode = ""
@@ -850,7 +911,7 @@ while True:
 
             if event.type == pygame.MOUSEBUTTONDOWN:
                 mouse_x, mouse_y = pygame.mouse.get_pos()
-                play, Ai, stats_mode, end_game = main_menu.main_menu(mouse_x, mouse_y)
+                play, Ai, stats_mode, end_game, settings = main_menu.main_menu(mouse_x, mouse_y)
                 if play:
                     minimax_mode = False
                     board = Board()
@@ -861,7 +922,10 @@ while True:
                     game_mode = "AI"
 
                 elif stats_mode:
-                    game_mode = "Stats"
+                    game_mode = "Stats_menu"
+
+                elif settings:
+                    print("settings")
 
                 elif end_game:
                     pygame.quit()
@@ -918,7 +982,8 @@ while True:
 
             if current_turn == 1:
                 valid_moves = board.check_for_valid_show(current_turn, directions_to_check)
-                no_valid_move_counter, current_turn = board.check_if_valid_moves(valid_moves, current_turn, no_valid_move_counter)
+                no_valid_move_counter, current_turn = board.check_if_valid_moves(valid_moves, current_turn,
+                                                                                 no_valid_move_counter)
                 if no_valid_move_counter == 2:
                     print(no_valid_move_counter)
                     end_of_the_match, white_points, black_points, winner = board.end_of_match()
@@ -1125,14 +1190,14 @@ while True:
                     game_mode = "playing"
 
                 elif stats_mode:
-                    game_mode = "Stats"
+                    game_mode = "Stats_after_game"
 
                 elif back:
                     game_mode = "main menu"
 
         pygame.display.flip()
 
-    if game_mode == "Stats":
+    if game_mode == "Stats_after_game":
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
@@ -1143,16 +1208,42 @@ while True:
                     pygame.quit()
                     sys.exit()
 
-            stats.stats(white_wins, black_wins, total_white_points, total_black_points, screen, mouse_x, mouse_y)
+            stats_after_game.stats(white_wins, black_wins, total_white_points, total_black_points, screen, mouse_x,
+                                   mouse_y)
 
             if event.type == pygame.MOUSEBUTTONDOWN:
                 mouse_x, mouse_y = pygame.mouse.get_pos()
-                back, play_again = stats.stats(white_wins, black_wins, total_white_points, total_black_points, screen,
-                                               mouse_x, mouse_y)
+                back, play_again, main_menu_stats = stats_after_game.stats(white_wins, black_wins, total_white_points,
+                                                                           total_black_points, screen,
+                                                                           mouse_x, mouse_y)
                 if play_again:
                     board = Board()
                     current_turn = BLACK
                     game_mode = last_mode
+
+                elif back:
+                    game_mode = "end_screen"
+
+                elif main_menu_stats:
+                    game_mode = "main menu"
+
+    if game_mode == "Stats_menu":
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE:
+                    pygame.quit()
+                    sys.exit()
+
+            stats_menu.stats(white_wins, black_wins, total_white_points, total_black_points, screen, mouse_x, mouse_y)
+
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                mouse_x, mouse_y = pygame.mouse.get_pos()
+                back = stats_menu.stats(white_wins, black_wins, total_white_points, total_black_points, screen,
+                                        mouse_x, mouse_y)
 
                 if back:
                     game_mode = "main menu"
@@ -1189,6 +1280,9 @@ while True:
                     if load_Q_table == False:
                         load_Q_table = True
                     print("Q_learning")
+
+    if game_mode == "Settings":
+        pygame.display.flip()
 
 # udelat nove mody ...minimax,q_learning,playing
 # if q_learning mode:
