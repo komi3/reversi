@@ -768,7 +768,7 @@ class Stats:
 
 class Loading_screen:
     def __init__(self):
-        self.font = pygame.font.Font(None, 48)
+        self.font = pygame.font.Font(None, 60)
         self.loading_text_list = ["loading", "loading.", "loading..", "loading..."]
 
     def loading(self, loading_done_flag):
@@ -778,10 +778,9 @@ class Loading_screen:
                     break  # Exit immediately if loading is done
                 screen.fill((0, 0, 0))
                 text_surface = self.font.render(text, True, (255, 255, 255))
-                screen.blit(text_surface, (SCREEN_SIZE // 4, window_size // 4))
+                screen.blit(text_surface, (SCREEN_SIZE // 2.5, window_size // 2.3))
                 pygame.display.flip()
                 pygame.time.wait(300)
-
 
 class AI:
     def __init__(self):
