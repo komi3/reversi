@@ -144,6 +144,109 @@ def convert_to_tenser(board, current_player):
     return board_tensor.unsqueeze(0)
 
 
+def minimax_data_gathering(model, dataset_path, num_epochs, learning_rate, save_path):
+    borders = get_borders(BOARD_SIZE)
+    board = Board()
+    no_valid_move_counter = 0
+    current_game_states = []
+    all_board_states = []
+    all_game_outcomes = []
+    games_to_generate = 1000
+    games_played = 0
+
+    while True:
+        if game_mode == "playing":
+
+            valid_moves = board.check_for_valid_show(current_turn, directions_to_check)
+            current_game_states.append(board.grid.copy())
+
+            if not valid_moves:
+                if no_valid_move_counter == 1:
+                    end_of_the_match, white_points, black_points, winner = board.end_of_match()
+                    board = Board()
+                    current_turn = BLACK
+                    no_valid_move_counter = 0
+                    continue
+
+                current_turn = -current_turn
+                no_valid_move_counter += 1
+                continue
+
+            # Reset counter when valid moves exist
+            no_valid_move_counter = 0
+
+            # AI move calculation
+            best_move = None
+            second_best_move = None
+            third_best_move = None
+            best_score = float('-inf') if current_turn == WHITE else float('inf')
+            depth = update_depth(board)
+
+            for move in valid_moves:
+                row, col = move
+                cloned_board = board.clone_board()
+                cloned_board.grid[row, col] = current_turn
+                cloned_board.flip(col, row, current_turn, directions_to_check)
+
+                score = cloned_board.minimax(depth, -current_turn, 0, alfa, beta, borders)
+
+                if current_turn == WHITE:
+                    if score > best_score:
+                        third_best_move = second_best_move
+                        second_best_move = best_move
+                        best_move = move
+                        best_score = score
+                else:  # BLACK
+                    if score < best_score:
+                        third_best_move = second_best_move
+                        second_best_move = best_move
+                        best_move = move
+                        best_score = score
+
+            if best_move:
+                # Create list of top moves and filter out None values
+                list_of_moves = [best_move, second_best_move, third_best_move]
+                list_of_moves_2 = [move for move in list_of_moves if move is not None]
+
+                if list_of_moves_2:  # Make sure we have valid moves
+                    row, col = random.choice(list_of_moves_2)
+                    board.grid[row, col] = current_turn
+                    board.flip(col, row, current_turn, directions_to_check)
+                    current_turn = -current_turn
+                    end_of_the_match, white_points, black_points, winner = board.end_of_match()
+
+            if end_of_the_match:
+                games_played += 1
+                print(f"Game{games_played} winner:{winner}")
+                if winner == "white":
+                    outcome = 1.0
+                elif winner == "black":
+                    outcome = -1.0
+                else:  # Draw
+                    outcome = 0.0
+
+                for state in current_game_states:
+                    all_board_states.append(state)
+                    all_game_outcomes.append(outcome)
+
+                if games_played >= games_to_generate:
+                    print("Finished generating dataset.")
+                    # Now save the complete dataset and exit the loop
+                    states_array = np.array(all_board_states)
+                    outcomes_array = np.array(all_game_outcomes)
+                    np.savez_compressed('reversi_dataset.npz', boards=states_array, outcomes=outcomes_array)
+                    print("Dataset saved!")
+                    break  # Exit the while loop
+
+                current_game_states = []
+                print("Dataset saved!")
+                board = Board()
+                board_state = []
+                allgame_outcome = []
+                current_turn = BLACK
+                no_valid_move_counter = 0
+
+
 class Board:
     def __init__(self):
         directions_to_check = [(-1, 0), (-1, -1), (-1, 1), (1, -1), (1, 1), (0, 1), (1, 0), (0, -1)]
