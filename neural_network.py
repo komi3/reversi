@@ -45,6 +45,9 @@ num_episodes = 50000
 
 q_table = np.zeros((BOARD_SIZE, BOARD_SIZE), dtype=int)
 
+games_to_generate = 10
+dataset_path = "C:/Users/micha/Documents/'reversi_dataset.npz"
+
 # jak jsou hodnoceny pozice
 WEIGHTED_BOARD = np.array([
     [100, -10, 10, 5, 5, 10, -10, 100],
@@ -144,14 +147,15 @@ def convert_to_tenser(board, current_player):
     return board_tensor.unsqueeze(0)
 
 
-def minimax_data_gathering(model, dataset_path, num_epochs, learning_rate, save_path):
+def minimax_data_gathering(dataset_path, games_to_generate):
+    depth = 2
     borders = get_borders(BOARD_SIZE)
+    current_turn = BLACK
     board = Board()
     no_valid_move_counter = 0
     current_game_states = []
     all_board_states = []
     all_game_outcomes = []
-    games_to_generate = 1000
     games_played = 0
 
     while True:
@@ -180,7 +184,6 @@ def minimax_data_gathering(model, dataset_path, num_epochs, learning_rate, save_
             second_best_move = None
             third_best_move = None
             best_score = float('-inf') if current_turn == WHITE else float('inf')
-            depth = update_depth(board)
 
             for move in valid_moves:
                 row, col = move
@@ -234,8 +237,9 @@ def minimax_data_gathering(model, dataset_path, num_epochs, learning_rate, save_
                     # Now save the complete dataset and exit the loop
                     states_array = np.array(all_board_states)
                     outcomes_array = np.array(all_game_outcomes)
-                    np.savez_compressed('reversi_dataset.npz', boards=states_array, outcomes=outcomes_array)
-                    print("Dataset saved!")
+                    np.savez_compressed(dataset_path, boards=states_array, outcomes=outcomes_array)
+                    print(f"Dataset with {len(all_board_states)} states saved to {dataset_path}")
+
                     break  # Exit the while loop
 
                 current_game_states = []
@@ -249,7 +253,6 @@ def minimax_data_gathering(model, dataset_path, num_epochs, learning_rate, save_
 
 class Board:
     def __init__(self):
-        directions_to_check = [(-1, 0), (-1, -1), (-1, 1), (1, -1), (1, 1), (0, 1), (1, 0), (0, -1)]
 
         self.font = pygame.font.Font(None, 48)
         self.grid = np.zeros((BOARD_SIZE, BOARD_SIZE), dtype=int)
@@ -292,7 +295,7 @@ class Board:
 
         return end_of_the_match, white_points, black_points, winner
 
-    def check_for_valid_show(self, current_turn):
+    def check_for_valid_show(self, current_turn, directions_to_check):
         valid_moves = []
         for row in range(BOARD_SIZE):
             for col in range(BOARD_SIZE):
@@ -314,7 +317,7 @@ class Board:
                         break
         return valid_moves
 
-    def valid_moves_board(self, current_turn):
+    def valid_moves_board(self, current_turn, directions_to_check):
         valid_moves = self.check_for_valid_show(current_turn)
         board_valid_moves = np.zeros((BOARD_SIZE, BOARD_SIZE), dtype=int)
         for row, col in valid_moves:
@@ -322,7 +325,7 @@ class Board:
 
         return board_valid_moves
 
-    def flip(self, col, row, current_turn):
+    def flip(self, col, row, current_turn, directions_to_check):
         self.grid[row, col] = current_turn
         for x, y in directions_to_check:
             px, py = row + y, col + x
@@ -371,14 +374,14 @@ class Board:
                                         (255, 255, 255))
         screen.blit(text_surface, (200, 800))
 
-    def evaluate_player(self, winner, valid_moves, current_turn, borders):
+    def evaluate_player(self, winner, valid_moves, current_turn, borders, directions_to_check):
         # funkce hodnotí pozici na desce
         white_points = 0
         black_points = 0
         score = 0
         # vyvolá funkci pomocí které upravuje Weighted board (jak jsou hodnocené jednotlivé pozice) podle toho, v jaké
         # části je hra (kolik tahů bylo odehráno)
-        self.WEIGHTED_BOARD = update_weighted_board(board)
+        self.WEIGHTED_BOARD = update_weighted_board(self)
 
         # použije funkci np.where která změní 0 a protihráčova (podle toho, jestli počítá bílé nebo černé body) pole na
         # False a nepočítá je a hráčovo na True a počítá hodnotu která je na nich podle Weighted board, a ty potom sečte
@@ -456,7 +459,7 @@ class Board:
         # zjistím jestli algoritmus došel na konec hry nebo došel do hloubky nula
         # pokud ano, funkce vrátí konečné ohodnocení desky
         if end_of_the_match or depth == 0:
-            return self.evaluate_player(winner, valid_moves, directions_to_check, current_turn, borders)
+            return self.evaluate_player(winner, valid_moves, current_turn, borders, directions_to_check)
 
         valid_moves = self.check_for_valid_show(current_turn, directions_to_check)
         # jestli je možné hrát a pokud ani jeden nemůže hrát ukončí hru
@@ -469,7 +472,7 @@ class Board:
                 current_turn = -current_turn
                 no_valid_move_counter += 1
             if no_valid_move_counter == 2:
-                return self.evaluate_player(winner, valid_moves, directions_to_check, current_turn, borders)
+                return self.evaluate_player(winner, valid_moves, current_turn, borders, directions_to_check)
 
             return self.minimax(depth, -current_turn, no_valid_move_counter, alfa, beta, borders)
 
@@ -710,6 +713,8 @@ class Neural_agent(nn.Module):
         pass
 
 
+#minimax_data_gathering(dataset_path, games_to_generate)
+
 borders = get_borders(BOARD_SIZE)
 board = Board()
 mouse_x, mouse_y = 0, 0
@@ -720,6 +725,7 @@ agent = QLearningAgent(alpha, gamma, epsilon)
 AI_turn = 1
 agent_pro = QLearningAgent(alpha, gamma, 0)
 agent_pro.load_qtable(filename)
+
 while True:
     pygame.display.flip()
     if game_mode == "playing":
