@@ -3,6 +3,7 @@ import sys
 import numpy as np
 import random
 import pickle
+import threading
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -150,6 +151,13 @@ def convert_to_tenser(board, current_player):
 
 
 def minimax_data_gathering(dataset_path, games_to_generate):
+    game_mode = "playing"
+    BOARD_SIZE = 8
+    directions_to_check = [(-1, 0), (-1, -1), (-1, 1), (1, -1), (1, 1), (0, 1), (1, 0), (0, -1)]
+    WHITE, BLACK, EMPTY = 1, -1, 0
+    maximizing_player = True
+    alfa = float('-inf')
+    beta = float('inf')
     depth = 2
     borders = get_borders(BOARD_SIZE)
     current_turn = BLACK
@@ -233,11 +241,14 @@ def minimax_data_gathering(dataset_path, games_to_generate):
                 else:  # Draw
                     outcome = 0.0
 
-                for state in current_game_states:
-                    all_board_states.append(state)
-                    all_game_outcomes.append(outcome)
+                for i in range(len(current_game_states)):
+                    # Get the state and the turn for the i-th move
+                    state = current_game_states[i]
+                    turn = current_turn_list[i]
 
-                for turn in current_turn_list:
+                    # Append all three corresponding data points
+                    all_board_states.append(state)
+                    all_game_outcomes.append(outcome)  # Outcome is the same for the whole game
                     all_turns.append(turn)
 
                 if games_played >= games_to_generate:
@@ -246,10 +257,11 @@ def minimax_data_gathering(dataset_path, games_to_generate):
                     states_array = np.array(all_board_states)
                     outcomes_array = np.array(all_game_outcomes)
                     turn_array = np.array(all_turns)
-                    np.savez_compressed(dataset_path, boards=states_array, outcomes=outcomes_array, turns=turn_array)
-                    print(f"Dataset with {len(all_board_states)} states saved to {dataset_path}")
+                    # np.savez_compressed(dataset_path, boards=states_array, outcomes=outcomes_array,turns = turn_array)
+                    # print(f"Dataset with {len(all_board_states)} states saved to {dataset_path}")
 
-                    break  # Exit the while loop
+                    # break # Exit the while loop
+                    return states_array, outcomes_array, turn_array
 
                 current_game_states = []
                 current_turn_list = []
@@ -304,6 +316,44 @@ def training_on_data(model, dataset_path, num_epochs, learning_rate, save_path):
 
     torch.save(model.state_dict(), save_path)
     print(f"--- Training Finished. Model saved to {save_path} ---")
+
+
+def save_threats(dataset_path, games_to_generate, num_threads):
+    results = []
+    threads = []
+    lock = threading.Lock()
+    for i in range(num_threads):
+        # start a threat
+        thread = threading.Thread(target=worker_threat, args=(dataset_path, games_to_generate, results, lock))
+        threads.append(thread)
+        thread.start()
+    # wait for all the threats to finish
+    for thread in threads:
+        thread.join()
+
+    print("All threads have finished.")
+    # save all the threats
+    final_states = []
+    final_outcomes = []
+    final_turns = []
+    for result in results:
+        final_states.extend(result['states'])
+        final_outcomes.extend(result['outcomes'])
+        final_turns.extend(result['turns'])
+
+    states_array = np.array(final_states)
+    outcomes_array = np.array(final_outcomes)
+    turns_array = np.array(final_turns)
+
+    np.savez_compressed(dataset_path, boards=states_array, outcomes=outcomes_array, turns=turns_array)
+    print(f"Dataset with {len(final_states)} states saved successfully to {dataset_path}")
+
+
+def worker_threat(dataset_path, games_to_generate, results, lock):
+    states, outcomes, turns = minimax_data_gathering(games_to_generate)
+    # upravovat promenou muze jenom jedno vlakno ktere ma lock
+    with lock:
+        results.append({'states': states, 'outcomes': outcomes, 'turns': turns})
 
 
 class Board:
@@ -770,7 +820,9 @@ class Neural_agent(nn.Module):
         print("completed")
 
 
-minimax_data_gathering(dataset_path, games_to_generate)
+for i in range(1, 3):
+    thread = threading.Thread(target=minimax_data_gathering, args=(dataset_path, games_to_generate))
+    thread.start()
 
 borders = get_borders(BOARD_SIZE)
 board = Board()
