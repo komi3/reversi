@@ -5,6 +5,7 @@ import random
 import pickle
 import torch
 import torch.nn as nn
+import torch.optim as optim
 import torch.nn.functional as F
 
 header = 30
@@ -46,7 +47,8 @@ num_episodes = 50000
 q_table = np.zeros((BOARD_SIZE, BOARD_SIZE), dtype=int)
 
 games_to_generate = 10
-dataset_path = "C:/Users/micha/Documents/'reversi_dataset.npz"
+dataset_path = "C:/Users/micha/reversi_cursor/'reversi_dataset_minimax.npz"
+save_path = "C:/Users/micha/reversi_cursor/'reversi_model_nn.pth"
 
 # jak jsou hodnoceny pozice
 WEIGHTED_BOARD = np.array([
@@ -154,8 +156,10 @@ def minimax_data_gathering(dataset_path, games_to_generate):
     board = Board()
     no_valid_move_counter = 0
     current_game_states = []
+    current_turn_list = []
     all_board_states = []
     all_game_outcomes = []
+    all_turns = []
     games_played = 0
 
     while True:
@@ -163,6 +167,7 @@ def minimax_data_gathering(dataset_path, games_to_generate):
 
             valid_moves = board.check_for_valid_show(current_turn, directions_to_check)
             current_game_states.append(board.grid.copy())
+            current_turn_list.append(current_turn)
 
             if not valid_moves:
                 if no_valid_move_counter == 1:
@@ -232,23 +237,73 @@ def minimax_data_gathering(dataset_path, games_to_generate):
                     all_board_states.append(state)
                     all_game_outcomes.append(outcome)
 
+                for turn in current_turn_list:
+                    all_turns.append(turn)
+
                 if games_played >= games_to_generate:
                     print("Finished generating dataset.")
                     # Now save the complete dataset and exit the loop
                     states_array = np.array(all_board_states)
                     outcomes_array = np.array(all_game_outcomes)
-                    np.savez_compressed(dataset_path, boards=states_array, outcomes=outcomes_array)
+                    turn_array = np.array(all_turns)
+                    np.savez_compressed(dataset_path, boards=states_array, outcomes=outcomes_array, turns=turn_array)
                     print(f"Dataset with {len(all_board_states)} states saved to {dataset_path}")
 
                     break  # Exit the while loop
 
                 current_game_states = []
+                current_turn_list = []
                 print("Dataset saved!")
                 board = Board()
                 board_state = []
                 allgame_outcome = []
                 current_turn = BLACK
                 no_valid_move_counter = 0
+
+
+def training_on_data(model, dataset_path, num_epochs, learning_rate, save_path):
+    print("Loading dataset...")
+    data = np.load(dataset_path)
+    board_states = data['boards']
+    game_outcomes = data['outcomes']
+    turns = data['turns']
+
+    loss_function = nn.MSELoss()
+    optimizer = optim.Adam(model.parameters(), lr=learning_rate)
+
+    # puts the model in training mode deactivets some neurons that  could cose overfitting
+    model.train()
+    print("starting training")
+
+    for epoch in range(num_epochs):
+        total_loss = 0.0
+
+        for i in range(len(board_states)):
+            board = board_states[i]
+            outcome = game_outcomes[i]
+            turn = turns[i]
+        # odstanime hodnoty z minuleho kroku
+        optimizer.zero_grad()
+        # hru převedu do tenseru
+        tenser = convert_to_tenser(board, turn)
+        # výsledek hry převedu do tenseru
+        target_tensor = torch.tensor([[outcome]], dtype=torch.float32)
+        # model mi da jeho tah
+        prediction = model(tenser)
+        # zjistim jak moc dobrej nebo spatnej to byl tah
+        loss = loss_function(prediction, target_tensor)
+        # vypocita upravu weights a bias
+        loss.backward()
+        # upravo weights a bias
+        optimizer.step()
+        # celkovy ukazatel zpravnosti odpovedi podle ktereho lze poznat jestli se model zpravne uci
+        total_loss += loss.item()
+
+        avg_loss = total_loss / len(board_states)
+        print(f"Epoch {epoch + 1}/{num_epochs} complete | Average Loss: {avg_loss}")
+
+    torch.save(model.state_dict(), save_path)
+    print(f"--- Training Finished. Model saved to {save_path} ---")
 
 
 class Board:
@@ -709,11 +764,13 @@ class Neural_agent(nn.Module):
 
         return final_output
 
-    def training_self(self):
-        pass
+    def load(self, save_path):
+        print(f"Loading model weights from {save_path}...")
+        self.load_state_dict(torch.load(save_path))
+        print("completed")
 
 
-#minimax_data_gathering(dataset_path, games_to_generate)
+minimax_data_gathering(dataset_path, games_to_generate)
 
 borders = get_borders(BOARD_SIZE)
 board = Board()
