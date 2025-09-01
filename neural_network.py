@@ -361,7 +361,7 @@ def run_data_generation(dataset_path, games_per_process, num_processes):
     while completed_workers < num_processes:
         # try:
         # Wait for a result with timeout
-        result = result_queue.get(timeout=30)  # 30 second timeout
+        result = result_queue.get()  # 30 second timeout
         print(f"  - Received result from worker. Contains {len(result.get('states', []))} states.")
 
         all_new_states.extend(result['states'])
@@ -887,8 +887,8 @@ class Neural_agent(nn.Module):
 
 if __name__ == '__main__':
     dataset_path = "C:/Users/micha/reversi_cursor/reversi_dataset_minimax.npz"
-    total_games = 10
-    num_processes = 4
+    total_games = 200
+    num_processes = 10
 
     run_data_generation(dataset_path, total_games, num_processes)
 
