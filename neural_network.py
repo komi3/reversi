@@ -4,6 +4,14 @@ import numpy as np
 import random
 import pickle
 import threading
+import pygame
+import sys
+import numpy as np
+import random
+import pickle
+import threading
+import os
+import multiprocessing
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -18,38 +26,10 @@ window_size = SCREEN_SIZE + header
 filename = "C:/Users/micha/Documents/reversi_q_table.pkl"
 directions_to_check = [(-1, 0), (-1, -1), (-1, 1), (1, -1), (1, 1), (0, 1), (1, 0), (0, -1)]
 
-pygame.init()
-screen = pygame.display.set_mode((SCREEN_SIZE, window_size))
-pygame.display.set_caption('Reversi')
-font = pygame.font.Font(None, 48)
-white_points = 0
-black_points = 0
-game_mode = "playing"
-current_turn = - 1
-
-# inicializace základních proměnných pro minimax algoritmus
-maximizing_player = True
-depth = 3
-
-alfa = float('-inf')
-beta = float('inf')
-
-# Jak moc meni nove informace stare informace
-alpha = 0.5
-# Jak moc dulezite jsou dlouhodobe odmeny
-gamma = 0.95
-# Jak moc bude nas agent delat nahodne tahy
-epsilon = 0.5
-# Jak moc se epsilon zmensuje casem
-epsilon_decay = 0.995
-min_epsilon = 0.01
-num_episodes = 50000
-
-q_table = np.zeros((BOARD_SIZE, BOARD_SIZE), dtype=int)
-
-games_to_generate = 10
-dataset_path = "C:/Users/micha/reversi_cursor/'reversi_dataset_minimax.npz"
-save_path = "C:/Users/micha/reversi_cursor/'reversi_model_nn.pth"
+# pygame.init()
+# screen = pygame.display.set_mode((SCREEN_SIZE, window_size))
+# pygame.display.set_caption('Reversi')
+# font = pygame.font.Font(None, 48)
 
 # jak jsou hodnoceny pozice
 WEIGHTED_BOARD = np.array([
@@ -97,6 +77,31 @@ LATE_GAME_BOARD = np.array([
     [70, 20, 20, 20, 20, 20, 20, 70]
 ])
 
+white_points = 0
+black_points = 0
+game_mode = "playing"
+current_turn = - 1
+
+# inicializace základních proměnných pro minimax algoritmus
+maximizing_player = True
+depth = 3
+
+alfa = float('-inf')
+beta = float('inf')
+
+# Jak moc meni nove informace stare informace
+alpha = 0.5
+# Jak moc dulezite jsou dlouhodobe odmeny
+gamma = 0.95
+# Jak moc bude nas agent delat nahodne tahy
+epsilon = 0.5
+# Jak moc se epsilon zmensuje casem
+epsilon_decay = 0.995
+min_epsilon = 0.01
+num_episodes = 50000
+
+save_path = "C:/Users/micha/reversi_cursor/'reversi_model_nn.pth"
+
 
 def get_borders(BOARD_SIZE):
     borders = []
@@ -111,6 +116,51 @@ def get_borders(BOARD_SIZE):
 
 
 def update_weighted_board(board):
+    WEIGHTED_BOARD = np.array([
+        [100, -10, 10, 5, 5, 10, -10, 100],
+        [-10, -20, 1, 1, 1, 1, -20, -10],
+        [10, 1, 5, 5, 5, 5, 1, 10],
+        [5, 1, 5, 0, 0, 5, 1, 5],
+        [5, 1, 5, 0, 0, 5, 1, 5],
+        [10, 1, 5, 5, 5, 5, 1, 10],
+        [-10, -20, 1, 1, 1, 1, -20, -10],
+        [100, -10, 10, 5, 5, 10, -10, 100]
+    ])
+    # na začátku hry (0..20 [tahů])
+    EARLY_GAME_BOARD = np.array([
+        [120, -20, 20, 5, 5, 20, -20, 120],
+        [-20, -40, -5, -5, -5, -5, -40, -20],
+        [20, -5, 15, 3, 3, 15, -5, 20],
+        [5, -5, 3, 3, 3, 3, -5, 5],
+        [5, -5, 3, 3, 3, 3, -5, 5],
+        [20, -5, 15, 3, 3, 15, -5, 20],
+        [-20, -40, -5, -5, -5, -5, -40, -20],
+        [120, -20, 20, 5, 5, 20, -20, 120]
+    ])
+    # uprostřed hry(20..40 [tahů])
+    MID_GAME_BOARD = np.array([
+        [100, -10, 8, 6, 6, 8, -10, 100],
+        [-10, -20, 1, 1, 1, 1, -20, -10],
+        [8, 1, 5, 4, 4, 5, 1, 8],
+        [6, 1, 4, 2, 2, 4, 1, 6],
+        [6, 1, 4, 2, 2, 4, 1, 6],
+        [8, 1, 5, 4, 4, 5, 1, 8],
+        [-10, -20, 1, 1, 1, 1, -20, -10],
+        [100, -10, 8, 6, 6, 8, -10, 100]
+    ])
+
+    # na konci hry(40...  [tahů])
+    LATE_GAME_BOARD = np.array([
+        [70, 20, 20, 20, 20, 20, 20, 70],
+        [20, 10, 10, 10, 10, 10, 10, 20],
+        [20, 10, 5, 5, 5, 5, 10, 20],
+        [20, 10, 5, 2, 2, 5, 10, 20],
+        [20, 10, 5, 2, 2, 5, 10, 20],
+        [20, 10, 5, 5, 5, 5, 10, 20],
+        [20, 10, 10, 10, 10, 10, 10, 20],
+        [70, 20, 20, 20, 20, 20, 20, 70]
+    ])
+
     occupied_squares = np.count_nonzero(board.grid)
     if occupied_squares <= 20:
         return EARLY_GAME_BOARD
@@ -150,18 +200,10 @@ def convert_to_tenser(board, current_player):
     return board_tensor.unsqueeze(0)
 
 
-def minimax_data_gathering(dataset_path, games_to_generate):
-    game_mode = "playing"
-    BOARD_SIZE = 8
-    directions_to_check = [(-1, 0), (-1, -1), (-1, 1), (1, -1), (1, 1), (0, 1), (1, 0), (0, -1)]
-    WHITE, BLACK, EMPTY = 1, -1, 0
-    maximizing_player = True
-    alfa = float('-inf')
-    beta = float('inf')
-    depth = 2
-    borders = get_borders(BOARD_SIZE)
-    current_turn = BLACK
+def minimax_data_gathering(games_to_generate):
+    # Initialize all necessary variables
     board = Board()
+    current_turn = BLACK
     no_valid_move_counter = 0
     current_game_states = []
     current_turn_list = []
@@ -169,29 +211,28 @@ def minimax_data_gathering(dataset_path, games_to_generate):
     all_game_outcomes = []
     all_turns = []
     games_played = 0
+    borders = get_borders(BOARD_SIZE)
+    depth = 1
 
-    while True:
-        if game_mode == "playing":
+    while games_played < games_to_generate:
+        valid_moves = board.check_for_valid_show(current_turn, directions_to_check)
+        current_game_states.append(board.grid.copy())
+        current_turn_list.append(current_turn)
 
-            valid_moves = board.check_for_valid_show(current_turn, directions_to_check)
-            current_game_states.append(board.grid.copy())
-            current_turn_list.append(current_turn)
+        end_of_the_match = False
 
-            if not valid_moves:
-                if no_valid_move_counter == 1:
-                    end_of_the_match, white_points, black_points, winner = board.end_of_match()
-                    board = Board()
-                    current_turn = BLACK
-                    no_valid_move_counter = 0
-                    continue
-
+        if not valid_moves:
+            no_valid_move_counter += 1
+            if no_valid_move_counter >= 2:
+                print(f"Worker {os.getpid()}: Game {games_played + 1} ended in a stalemate.")
+                end_of_the_match = True
+            else:
                 current_turn = -current_turn
-                no_valid_move_counter += 1
                 continue
-
-            # Reset counter when valid moves exist
+        else:
             no_valid_move_counter = 0
 
+        if not end_of_the_match:
             # AI move calculation
             best_move = None
             second_best_move = None
@@ -220,57 +261,45 @@ def minimax_data_gathering(dataset_path, games_to_generate):
                         best_score = score
 
             if best_move:
-                # Create list of top moves and filter out None values
                 list_of_moves = [best_move, second_best_move, third_best_move]
                 list_of_moves_2 = [move for move in list_of_moves if move is not None]
 
-                if list_of_moves_2:  # Make sure we have valid moves
+                if list_of_moves_2:
                     row, col = random.choice(list_of_moves_2)
                     board.grid[row, col] = current_turn
                     board.flip(col, row, current_turn, directions_to_check)
                     current_turn = -current_turn
                     end_of_the_match, white_points, black_points, winner = board.end_of_match()
 
-            if end_of_the_match:
-                games_played += 1
-                print(f"Game{games_played} winner:{winner}")
-                if winner == "white":
-                    outcome = 1.0
-                elif winner == "black":
-                    outcome = -1.0
-                else:  # Draw
-                    outcome = 0.0
+        if end_of_the_match:
+            games_played += 1
+            print(f"Game{games_played} winner:{winner}")
 
-                for i in range(len(current_game_states)):
-                    # Get the state and the turn for the i-th move
-                    state = current_game_states[i]
-                    turn = current_turn_list[i]
+            if winner == "white":
+                outcome = 1.0
+            elif winner == "black":
+                outcome = -1.0
+            else:
+                outcome = 0.0
 
-                    # Append all three corresponding data points
-                    all_board_states.append(state)
-                    all_game_outcomes.append(outcome)  # Outcome is the same for the whole game
-                    all_turns.append(turn)
+            for i in range(len(current_game_states)):
+                state = current_game_states[i]
+                turn = current_turn_list[i]
+                all_board_states.append(state)
+                all_game_outcomes.append(outcome)
+                all_turns.append(turn)
 
-                if games_played >= games_to_generate:
-                    print("Finished generating dataset.")
-                    # Now save the complete dataset and exit the loop
-                    states_array = np.array(all_board_states)
-                    outcomes_array = np.array(all_game_outcomes)
-                    turn_array = np.array(all_turns)
-                    # np.savez_compressed(dataset_path, boards=states_array, outcomes=outcomes_array,turns = turn_array)
-                    # print(f"Dataset with {len(all_board_states)} states saved to {dataset_path}")
+            current_game_states = []
+            current_turn_list = []
+            board = Board()
+            current_turn = BLACK
+            no_valid_move_counter = 0
 
-                    # break # Exit the while loop
-                    return states_array, outcomes_array, turn_array
+    states_array = np.array(all_board_states)
+    outcomes_array = np.array(all_game_outcomes)
+    turn_array = np.array(all_turns)
 
-                current_game_states = []
-                current_turn_list = []
-                print("Dataset saved!")
-                board = Board()
-                board_state = []
-                allgame_outcome = []
-                current_turn = BLACK
-                no_valid_move_counter = 0
+    return states_array, outcomes_array, turn_array
 
 
 def training_on_data(model, dataset_path, num_epochs, learning_rate, save_path):
@@ -318,48 +347,106 @@ def training_on_data(model, dataset_path, num_epochs, learning_rate, save_path):
     print(f"--- Training Finished. Model saved to {save_path} ---")
 
 
-def save_threats(dataset_path, games_to_generate, num_threads):
-    results = []
-    threads = []
-    lock = threading.Lock()
-    for i in range(num_threads):
-        # start a threat
-        thread = threading.Thread(target=worker_threat, args=(dataset_path, games_to_generate, results, lock))
-        threads.append(thread)
-        thread.start()
-    # wait for all the threats to finish
-    for thread in threads:
-        thread.join()
+def run_data_generation(dataset_path, games_per_process, num_processes):
+    processes = []
+    result_queue = multiprocessing.Queue()
 
-    print("All threads have finished.")
-    # save all the threats
-    final_states = []
-    final_outcomes = []
-    final_turns = []
-    for result in results:
-        final_states.extend(result['states'])
-        final_outcomes.extend(result['outcomes'])
-        final_turns.extend(result['turns'])
+    print(f"Starting {num_processes} worker processes, each generating {games_per_process} games...")
 
-    states_array = np.array(final_states)
-    outcomes_array = np.array(final_outcomes)
-    turns_array = np.array(final_turns)
+    for i in range(num_processes):
+        process = multiprocessing.Process(target=worker_process, args=(games_per_process, result_queue))
+        processes.append(process)
+        process.start()
+        print(f"Started worker process {i + 1}")
 
-    np.savez_compressed(dataset_path, boards=states_array, outcomes=outcomes_array, turns=turns_array)
-    print(f"Dataset with {len(final_states)} states saved successfully to {dataset_path}")
+    print(f"\n--- [Main Process] Now collecting data as workers finish...")
+
+    # Collect results as they come in
+    all_new_states = []
+    all_new_outcomes = []
+    all_new_turns = []
+    completed_workers = 0
+
+    while completed_workers < num_processes:
+        try:
+            # Wait for a result with timeout
+            result = result_queue.get(timeout=30)  # 30 second timeout
+            print(f"  - Received result from worker. Contains {len(result.get('states', []))} states.")
+
+            all_new_states.extend(result['states'])
+            all_new_outcomes.extend(result['outcomes'])
+            all_new_turns.extend(result['turns'])
+            completed_workers += 1
+
+            print(f"  - Progress: {completed_workers}/{num_processes} workers completed")
+
+        except Exception as e:
+            print(f"  - Error or timeout getting data from queue: {e}")
+            # Check if any processes are still alive
+            alive_processes = [p for p in processes if p.is_alive()]
+            if not alive_processes:
+                print("  - No processes are alive, breaking from wait loop")
+                break
+            else:
+                print(f"  - {len(alive_processes)} processes still running, continuing to wait...")
+
+    # Wait for all processes to finish
+    print("\n--- [Main Process] Waiting for all processes to terminate...")
+    for i, process in enumerate(processes):
+        process.join(timeout=10)  # 10 second timeout
+        if process.is_alive():
+            print(f"Process {i} is still alive, terminating...")
+            process.terminate()
+            process.join()
+
+    print(f"Finished collecting data. Total new game states collected: {len(all_new_states)}")
+
+    if not all_new_states:
+        print("No new data was collected. Nothing to save. Exiting.")
+        return
+
+    final_states = np.array(all_new_states)
+    final_outcomes = np.array(all_new_outcomes)
+    final_turns = np.array(all_new_turns)
+
+    if os.path.exists(dataset_path):
+        try:
+            print(f"Existing dataset found at {dataset_path}. Loading and appending...")
+            with np.load(dataset_path) as old_data:
+                old_states = old_data['boards']
+                old_outcomes = old_data['outcomes']
+                old_turns = old_data['turns']
+                print(f"  - Old dataset has {len(old_states)} states.")
+
+                final_states = np.concatenate([old_states, final_states])
+                final_outcomes = np.concatenate([old_outcomes, final_outcomes])
+                final_turns = np.concatenate([old_turns, final_turns])
+                print("  - Concatenation complete.")
+        except Exception as e:
+            print(f"  - [ERROR] Could not load or append to old dataset: {e}")
+            print("  - Saving new data as a new file instead.")
+    else:
+        print("No existing dataset found. Using new data only.")
+
+    print(f"The final dataset to be saved has {len(final_states)} total states.")
+    try:
+        np.savez_compressed(dataset_path, boards=final_states, outcomes=final_outcomes, turns=final_turns)
+        print(f"\n[SUCCESS] Dataset with {len(final_states)} states saved to {dataset_path}")
+    except Exception as e:
+        print(f"\n[FATAL ERROR] FAILED to save the file: {e}")
 
 
-def worker_threat(dataset_path, games_to_generate, results, lock):
-    states, outcomes, turns = minimax_data_gathering(games_to_generate)
+def worker_process(games_to_generate, result_queue):
     # upravovat promenou muze jenom jedno vlakno ktere ma lock
-    with lock:
-        results.append({'states': states, 'outcomes': outcomes, 'turns': turns})
+    states, outcomes, turns = minimax_data_gathering(games_to_generate)
+    print("worker_process")
+    result_queue.put({'states': states, 'outcomes': outcomes, 'turns': turns})
 
 
 class Board:
     def __init__(self):
 
-        self.font = pygame.font.Font(None, 48)
+        # self.font = pygame.font.Font(None, 48)
         self.grid = np.zeros((BOARD_SIZE, BOARD_SIZE), dtype=int)
 
         self.grid[3, 3] = WHITE
@@ -423,11 +510,10 @@ class Board:
         return valid_moves
 
     def valid_moves_board(self, current_turn, directions_to_check):
-        valid_moves = self.check_for_valid_show(current_turn)
-        board_valid_moves = np.zeros((BOARD_SIZE, BOARD_SIZE), dtype=int)
+        valid_moves = self.check_for_valid_show(current_turn, directions_to_check)
+        board_valid_moves = np.zeros((BOARD_SIZE, BOARD_SIZE), dtype=np.float32)
         for row, col in valid_moves:
             board_valid_moves[row, col] = 1.0
-
         return board_valid_moves
 
     def flip(self, col, row, current_turn, directions_to_check):
@@ -598,7 +684,9 @@ class Board:
                 # vloží stav hrací desky
                 cloned_board.grid = grid_copy
                 # přidá font z __init__, jelikož jsme tuto část neskopírovali
-                cloned_board.font = self.font
+
+                # cloned_board.font = self.font
+
                 # zavoláme flip funkci
                 cloned_board.flip(col, row, current_turn, directions_to_check)
                 # zavoláme funkci minimax kde ale změníme hloubku na hloubku -1 a změníme hráče na protihráče a naopak
@@ -625,7 +713,7 @@ class Board:
 
                 cloned_board = Board.__new__(Board)
                 cloned_board.grid = grid_copy
-                cloned_board.font = self.font
+                # cloned_board.font = self.font
                 cloned_board.flip(col, row, current_turn, directions_to_check)
 
                 eval = cloned_board.minimax(depth - 1, -current_turn, no_valid_move_counter, alfa, beta, borders)
@@ -820,127 +908,134 @@ class Neural_agent(nn.Module):
         print("completed")
 
 
-for i in range(1, 3):
-    thread = threading.Thread(target=minimax_data_gathering, args=(dataset_path, games_to_generate))
-    thread.start()
+if __name__ == '__main__':
+    dataset_path = "C:/Users/micha/reversi_cursor/reversi_dataset_minimax.npz"
+    total_games = 10
+    num_processes = 4
 
-borders = get_borders(BOARD_SIZE)
-board = Board()
-mouse_x, mouse_y = 0, 0
-play = False
-no_valid_move_counter = 0
-agent = QLearningAgent(alpha, gamma, epsilon)
-# agent.train( num_episodes,filename)
-AI_turn = 1
-agent_pro = QLearningAgent(alpha, gamma, 0)
-agent_pro.load_qtable(filename)
+    run_data_generation(dataset_path, total_games, num_processes)
 
-while True:
-    pygame.display.flip()
-    if game_mode == "playing":
-        valid_moves = board.check_for_valid_show(current_turn, directions_to_check)
+    print("\nData generation script finished successfully.")
 
-        for event in pygame.event.get():
+    pygame.quit()
+    sys.exit()
+    borders = get_borders(BOARD_SIZE)
+    board = Board()
+    mouse_x, mouse_y = 0, 0
+    play = False
+    no_valid_move_counter = 0
+    agent = QLearningAgent(alpha, gamma, epsilon)
+    # agent.train( num_episodes,filename)
+    AI_turn = 1
+    agent_pro = QLearningAgent(alpha, gamma, 0)
+    agent_pro.load_qtable(filename)
+
+    while True:
+        pygame.display.flip()
+        if game_mode == "playing":
             valid_moves = board.check_for_valid_show(current_turn, directions_to_check)
 
-            if event.type == pygame.QUIT:
-                pygame.quit()
-                sys.exit()
+            for event in pygame.event.get():
+                valid_moves = board.check_for_valid_show(current_turn, directions_to_check)
 
-            if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_ESCAPE:
+                if event.type == pygame.QUIT:
                     pygame.quit()
                     sys.exit()
 
-            if not valid_moves:
-                if current_turn == 1:
-                    current_turn = -current_turn
-                    no_valid_move_counter += 1
-                    print(no_valid_move_counter)
-                elif current_turn == -1:
-                    current_turn = -current_turn
-                    no_valid_move_counter += 1
-                    print(no_valid_move_counter)
+                if event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_ESCAPE:
+                        pygame.quit()
+                        sys.exit()
 
-            if no_valid_move_counter == 2:
-                print(no_valid_move_counter)
+                if not valid_moves:
+                    if current_turn == 1:
+                        current_turn = -current_turn
+                        no_valid_move_counter += 1
+                        print(no_valid_move_counter)
+                    elif current_turn == -1:
+                        current_turn = -current_turn
+                        no_valid_move_counter += 1
+                        print(no_valid_move_counter)
+
+                if no_valid_move_counter == 2:
+                    print(no_valid_move_counter)
+                    end_of_the_match, white_points, black_points, winner = board.end_of_match()
+                    print(f"white:{white_points}   black:{black_points}       winner:{winner}")
+                    board = Board()
+                    current_turn = -1
+                    game_mode = "playing"
+                    break
+
+                if valid_moves:
+                    no_valid_move_counter = 0
+
                 end_of_the_match, white_points, black_points, winner = board.end_of_match()
+
+                if current_turn == 1:
+                    # current_state = agent.get_state_key(board)
+                    move = agent.get_action(board, valid_moves)
+                    print(move)
+
+                    row, col = move
+                    board.grid[row, col] = current_turn
+                    board.flip(col, row, current_turn, directions_to_check)
+                    # reward = board.evaluate_player(None, valid_moves, directions_to_check, current_turn, borders)
+
+                    # next_state = agent.get_state_key(board)
+                    # next_valid_moves = board.check_for_valid_show(-current_turn, directions_to_check)
+
+                    # state_action = (current_state, tuple(move))
+                    # agent.learn(state_action, reward, next_state, next_valid_moves)
+
+                    current_turn = -current_turn
+                pygame.display.flip()
+
+                if current_turn == -1:
+                    if event.type == pygame.MOUSEBUTTONDOWN:
+                        # kliknutí se převede na pole
+                        mouse_x, mouse_y = event.pos
+                        row, col = mouse_y // SQUARE_SIZE, mouse_x // SQUARE_SIZE
+                        # pokud je pole, na které hráč kliknul, v seznamu možných polí, změní se toto pole na jeho a spustí se funkce na převracení protihráčových polí
+                        if [row, col] in valid_moves:
+                            board.grid[row, col] = current_turn
+                            board.flip(col, row, current_turn, directions_to_check)
+                            pygame.display.flip()
+                            # po odehrání hraje protihráč
+                            if current_turn == 1:
+                                current_turn = -1
+                            elif current_turn == -1:
+                                current_turn = 1
+                            pygame.display.flip()
+                        else:
+                            print("this move is impossible")
+                pygame.display.flip()
+
+            pygame.display.flip()
+            board.draw_board()
+            board.draw_valid_move(valid_moves)
+            end_of_the_match, white_points, black_points, winner = board.end_of_match()
+
+            board.draw_points(white_points, black_points, current_turn)
+            if end_of_the_match:
                 print(f"white:{white_points}   black:{black_points}       winner:{winner}")
                 board = Board()
                 current_turn = -1
                 game_mode = "playing"
-                break
-
-            if valid_moves:
-                no_valid_move_counter = 0
-
-            end_of_the_match, white_points, black_points, winner = board.end_of_match()
-
-            if current_turn == 1:
-                # current_state = agent.get_state_key(board)
-                move = agent.get_action(board, valid_moves)
-                print(move)
-
-                row, col = move
-                board.grid[row, col] = current_turn
-                board.flip(col, row, current_turn, directions_to_check)
-                # reward = board.evaluate_player(None, valid_moves, directions_to_check, current_turn, borders)
-
-                # next_state = agent.get_state_key(board)
-                # next_valid_moves = board.check_for_valid_show(-current_turn, directions_to_check)
-
-                # state_action = (current_state, tuple(move))
-                # agent.learn(state_action, reward, next_state, next_valid_moves)
-
-                current_turn = -current_turn
-            pygame.display.flip()
-
-            if current_turn == -1:
-                if event.type == pygame.MOUSEBUTTONDOWN:
-                    # kliknutí se převede na pole
-                    mouse_x, mouse_y = event.pos
-                    row, col = mouse_y // SQUARE_SIZE, mouse_x // SQUARE_SIZE
-                    # pokud je pole, na které hráč kliknul, v seznamu možných polí, změní se toto pole na jeho a spustí se funkce na převracení protihráčových polí
-                    if [row, col] in valid_moves:
-                        board.grid[row, col] = current_turn
-                        board.flip(col, row, current_turn, directions_to_check)
-                        pygame.display.flip()
-                        # po odehrání hraje protihráč
-                        if current_turn == 1:
-                            current_turn = -1
-                        elif current_turn == -1:
-                            current_turn = 1
-                        pygame.display.flip()
-                    else:
-                        print("this move is impossible")
-            pygame.display.flip()
 
         pygame.display.flip()
-        board.draw_board()
-        board.draw_valid_move(valid_moves)
-        end_of_the_match, white_points, black_points, winner = board.end_of_match()
 
-        board.draw_points(white_points, black_points, current_turn)
-        if end_of_the_match:
-            print(f"white:{white_points}   black:{black_points}       winner:{winner}")
-            board = Board()
-            current_turn = -1
-            game_mode = "playing"
+    # input layer 64 * 3 input layers with each square repersented
+    # hidden lauyer 40 to 128 neurons
+    # single output layer
+    # make a foward function
+    # ReLU function discareds neurons that recognize a pattern that usually lead to a bad game ---> bad outcome
+    #                                                    ---> it makes the neural network faster
 
-    pygame.display.flip()
+    # self-play training function
 
-# input layer 64 * 3 input layers with each square repersented
-# hidden lauyer 40 to 128 neurons
-# single output layer
-# make a foward function
-# ReLU function discareds neurons that recognize a pattern that usually lead to a bad game ---> bad outcome
-#                                                    ---> it makes the neural network faster
-
-# self-play training function
-
-# create a data set with a minimax algortihm this will be the starting data set for the neural network
-# then adjast the weights acordingli for the best resoluts
-# qtable data will be used as experience replay buffer to futer test the ablilites and adjust them acordingli    collections.deque,ReplayMemory
-# alpha zero methonod
-# two heads method
-# other imporvements
+    # create a data set with a minimax algortihm this will be the starting data set for the neural network
+    # then adjast the weights acordingli for the best resoluts
+    # qtable data will be used as experience replay buffer to futer test the ablilites and adjust them acordingli    collections.deque,ReplayMemory
+    # alpha zero methonod
+    # two heads method
+    # other imporvements
