@@ -4,12 +4,6 @@ import numpy as np
 import random
 import pickle
 import threading
-import pygame
-import sys
-import numpy as np
-import random
-import pickle
-import threading
 import os
 import multiprocessing
 import torch
@@ -357,9 +351,6 @@ def run_data_generation(dataset_path, games_per_process, num_processes):
         process = multiprocessing.Process(target=worker_process, args=(games_per_process, result_queue))
         processes.append(process)
         process.start()
-        print(f"Started worker process {i + 1}")
-
-    print(f"\n--- [Main Process] Now collecting data as workers finish...")
 
     # Collect results as they come in
     all_new_states = []
@@ -368,42 +359,28 @@ def run_data_generation(dataset_path, games_per_process, num_processes):
     completed_workers = 0
 
     while completed_workers < num_processes:
-        try:
-            # Wait for a result with timeout
-            result = result_queue.get(timeout=30)  # 30 second timeout
-            print(f"  - Received result from worker. Contains {len(result.get('states', []))} states.")
+        # try:
+        # Wait for a result with timeout
+        result = result_queue.get(timeout=30)  # 30 second timeout
+        print(f"  - Received result from worker. Contains {len(result.get('states', []))} states.")
 
-            all_new_states.extend(result['states'])
-            all_new_outcomes.extend(result['outcomes'])
-            all_new_turns.extend(result['turns'])
-            completed_workers += 1
+        all_new_states.extend(result['states'])
+        all_new_outcomes.extend(result['outcomes'])
+        all_new_turns.extend(result['turns'])
+        completed_workers += 1
 
-            print(f"  - Progress: {completed_workers}/{num_processes} workers completed")
-
-        except Exception as e:
-            print(f"  - Error or timeout getting data from queue: {e}")
-            # Check if any processes are still alive
-            alive_processes = [p for p in processes if p.is_alive()]
-            if not alive_processes:
-                print("  - No processes are alive, breaking from wait loop")
-                break
-            else:
-                print(f"  - {len(alive_processes)} processes still running, continuing to wait...")
+        print(f"  - Progress: {completed_workers}/{num_processes} workers completed")
 
     # Wait for all processes to finish
     print("\n--- [Main Process] Waiting for all processes to terminate...")
     for i, process in enumerate(processes):
-        process.join(timeout=10)  # 10 second timeout
+        process.join(timeout=10)
         if process.is_alive():
             print(f"Process {i} is still alive, terminating...")
             process.terminate()
-            process.join()
+            process.join()  # 10 second timeout
 
     print(f"Finished collecting data. Total new game states collected: {len(all_new_states)}")
-
-    if not all_new_states:
-        print("No new data was collected. Nothing to save. Exiting.")
-        return
 
     final_states = np.array(all_new_states)
     final_outcomes = np.array(all_new_outcomes)
