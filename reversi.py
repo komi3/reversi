@@ -173,17 +173,7 @@ class Board:
                 no_valid_move_counter += 1
                 print(no_valid_move_counter)
 
-        valid_moves = self.check_for_valid_show
-
-        if not valid_moves:
-            if current_turn == 1:
-                current_turn = -current_turn
-                no_valid_move_counter += 1
-                print(no_valid_move_counter)
-            elif current_turn == -1:
-                current_turn = -current_turn
-                no_valid_move_counter += 1
-                print(no_valid_move_counter)
+        valid_moves = self.check_for_valid_show(current_turn, directions_to_check)
 
         if valid_moves:
             no_valid_move_counter = 0
@@ -239,14 +229,14 @@ class Board:
 
     def flip(self, col, row, current_turn, directions_to_check):
         # prochází list se směry a postupně přičítá k pozici. Vytváří také prázdný list s pozicemi, které by v případě úspěšného tahu změnila na své.
-        for x, y in directions_to_check:
-            px, py = row + y, col + x
+        for dx, dy in directions_to_check:
+            px, py = row + dy, col + dx
             to_flip = []
             # pokud je pozice na hrací desce a zároveň je to pole protihráče, přidá tuto pozici na list a přičte směr k dané pozici
             while self.check_if_on_board(px, py) == True and self.grid[px, py] == -current_turn:
                 to_flip.append([px, py])
-                px += y
-                py += x
+                px += dy
+                py += dx
             # pokud je na poli hráč (který zrovna hraje) a zároveň je na desce, projde celý list a všechny pozice změní na pozice, které vlastní hráč
             if self.check_if_on_board(px, py) == True and self.grid[px, py] == current_turn:
                 for px, py in to_flip:
@@ -295,7 +285,7 @@ class Board:
         score = 0
         # vyvolá funkci pomocí které upravuje Weighted board (jak jsou hodnocené jednotlivé pozice) podle toho,
         # v jaké části je hra (kolik tahů bylo odehráno)
-        self.WEIGHTED_BOARD = update_weighted_board(board)
+        self.WEIGHTED_BOARD = update_weighted_board(self)
 
         #  použije funkci np.where která změní 0 a protihráčova (podle toho, jestli počítá bílé nebo černé body) pole
         #  na False a nepočítá je a hráčovo na True a počítá hodnotu která je na nich podle Weighted board, a ty potom
@@ -335,22 +325,13 @@ class Board:
         # black_points += 10
 
         # přidává body podle toho, kolik je možných tahů, čím více tahů tím více bodů
-        number_of_moves = 0
-        for move in valid_moves:
-            number_of_moves += 1
+        number_of_moves = len(valid_moves)
         # konečné sčítání bodů
-        if current_turn == 1:
-            white_points += (number_of_moves * 35)
-        else:
-            black_points += (number_of_moves * 35)
+        mobility_weight = 5
+        mobility_term = mobility_weight * (len(valid_moves) if current_turn == WHITE else -len(valid_moves))
 
-        if current_turn == 1:
-            score = white_points - black_points
-            return score
-
-        else:
-            score = black_points - white_points
-            return score
+        # konzistentní skóre: vždy WHITE - BLACK + mobilita(se znam.)
+        return (white_points - black_points) + mobility_term
 
     def clone_board(self):
         # funkce která kopíruje desku a vytváří z ní samostatný objekt který neovlivnuje originál
@@ -359,38 +340,32 @@ class Board:
 
         return clone
 
-    def minimax(self, depth, current_turn, no_valid_move_counter, alfa, beta, borders):
+    def minimax(self, depth, current_turn, no_valid_move_counter, alfa, beta, borders, maximizing_player):
+        maximizing_player = (current_turn == WHITE)
         # nastavil jsem základní hodnotu ohodnocení na kladné a záporné nekonečno
-        max_eval = float('-inf')
-        min_eval = float('inf')
+        best = float('-inf')
 
-        # zjistím jestli skončila hra a  spustím také funkci valid_moves (aby funkce evaluate mohla fungovat)
-        end_of_the_match, white_points, black_points, winner = self.end_of_match()
         valid_moves = self.check_for_valid_show(current_turn, directions_to_check)
         # zjistím jestli algoritmus došel na konec hry nebo došel do hloubky nula
         # pokud ano, funkce vrátí konečné ohodnocení desky
+        # zjistím jestli skončila hra a  spustím také funkci valid_moves (aby funkce evaluate mohla fungovat)
         if end_of_the_match or depth == 0:
             return self.evaluate_player(winner, valid_moves, directions_to_check, current_turn, borders)
 
-        valid_moves = self.check_for_valid_show(current_turn, directions_to_check)
         # jestli je možné hrát a pokud ani jeden nemůže hrát ukončí hru
+        # jednotná stop podmínka
+        if end_of_the_match or depth == 0 or no_valid_move_counter >= 2:
+            return self.evaluate_player(winner, valid_moves, directions_to_check, current_turn, borders)
+
         if not valid_moves:
-            if current_turn == 1:
-                current_turn = -current_turn
-                no_valid_move_counter += 1
+            # Simply pass turn and increment counter
+            return self.minimax(depth, -current_turn, no_valid_move_counter + 1, alfa, beta, borders,
+                                not maximizing_player)
 
-            elif current_turn == -1:
-                current_turn = -current_turn
-                no_valid_move_counter += 1
-            if no_valid_move_counter == 2:
-                return self.evaluate_player(winner, valid_moves, directions_to_check, current_turn, borders)
-
-            return self.minimax(depth, -current_turn, no_valid_move_counter, alfa, beta, borders)
-
-        if valid_moves:
-            no_valid_move_counter = 0
+        no_valid_move_counter = 0
         # minimax algoritmus hraje za bílého neboli 1
-        if current_turn == 1:
+        if maximizing_player:  # Proper maximizing logic
+            best = float('-inf')
             for move in valid_moves:
                 row, col = move
                 # udělám kopii stavu desky
@@ -409,9 +384,10 @@ class Board:
                 cloned_board.flip(col, row, current_turn, directions_to_check)
                 # zavoláme funkci minimax kde ale změníme hloubku na hloubku -1 a změníme hráče na protihráče a naopak
                 # (pokud skončí hra nebo funkce dojde na hloubku 0, řetěz funkcí se přeruší a funkce vrátí nejlepší hodnotu)
-                eval = cloned_board.minimax(depth - 1, -current_turn, no_valid_move_counter, alfa, beta, borders)
+                eval = cloned_board.minimax(depth - 1, -current_turn, no_valid_move_counter, alfa, beta, borders,
+                                            maximizing_player)
                 # zhodnotí zdali je skore lepší než nejlepší dosavadní skore
-                max_eval = max(max_eval, eval)
+                best = max(best, eval)
                 # vyhodnotí zda-li je nový tah lepší než dosavadní nejlepší tah
                 alfa = max(alfa, eval)
                 # zjistíme jestli max hráč má lepší skore než minimální skore min hráče a pokud ano, tuto větev
@@ -419,9 +395,10 @@ class Board:
                 if alfa >= beta:
                     break
             # vrátí nejlepší skore max hráče v této hloubce
-            return max_eval
+            return best
 
         else:
+            best = float('+inf')
             for move in valid_moves:
                 # stejné jako max jenom hledáme minimum místo maxima
                 row, col = move
@@ -434,14 +411,15 @@ class Board:
                 cloned_board.font = self.font
                 cloned_board.flip(col, row, current_turn, directions_to_check)
 
-                eval = cloned_board.minimax(depth - 1, -current_turn, no_valid_move_counter, alfa, beta, borders)
-                min_eval = min(min_eval, eval)
+                eval = cloned_board.minimax(depth - 1, -current_turn, no_valid_move_counter, alfa, beta, borders,
+                                            maximizing_player)
+                best = min(best, eval)
                 beta = min(beta, eval)
 
                 if alfa >= beta:
                     break
 
-            return min_eval
+            return best
 
 
 class QLearningAgent:
@@ -506,10 +484,6 @@ class QLearningAgent:
 
                 move = self.get_action(board, valid_moves)
                 # ... rest of your code ...
-
-                no_valid_move_counter = 0
-
-                move = self.get_action(board, valid_moves)
 
                 # Make the move and get new state
                 row, col = move
@@ -1090,13 +1064,13 @@ while True:
                 no_valid_move_counter = 0
 
             if minimax_mode and current_turn == 1:
+                maximizing_player = (current_turn == WHITE)
                 # minimax algoritmus hraje za bílého neboli 1
-                best_move = None
-                second_best_move = None
-                third_best_score = None
+                depth = update_depth(board)
                 best_move = None
                 best_score = float('-inf')
-                depth = update_depth(board)
+                alfa = float('-inf')
+                beta = float('inf')
 
                 for move in valid_moves:
                     row, col = move
@@ -1105,30 +1079,21 @@ while True:
                     cloned_board.grid[row, col] = current_turn
                     cloned_board.flip(col, row, current_turn, directions_to_check)
 
-                    score = cloned_board.minimax(depth, -current_turn, no_valid_move_counter, alfa, beta, borders)
+                    score = cloned_board.minimax(depth, -current_turn, no_valid_move_counter, alfa, beta, borders,
+                                                 maximizing_player)
 
                     # zhodnotíme zda-li je score lepší než předchozí když ano uložíme nejlepší tah a score
-                    if best_score < score:
-                        third_best_move = second_best_move
-                        second_best_move = best_move
-                        best_move = move
+                    if score > best_score:
                         best_score = score
+                        best_move = move
 
                 if best_move:
-                    if best_move:
-                        # Vytvořím dva listy, jeden prázdný a jeden s tahy
-                        list_of_moves = [best_move, second_best_move, third_best_move]
-                        list_of_moves_2 = []
-                        # Projdu list s tahy a přidám tahy do druhého listu, jelikož je možnost, že se náhodně vybere prázdné místo (None)
-                        for move in list_of_moves:
-                            if not move == None:
-                                list_of_moves_2.append(move)
-                        # Potom, co projdeme všechny možné tahy, nejlepší tah zahrajeme
-                        print(list_of_moves_2)
-                        row, col = random.choice(list_of_moves_2)
-                        board.grid[row, col] = current_turn
-                        board.flip(col, row, current_turn, directions_to_check)
-                        current_turn = -current_turn
+                    row, col = best_move
+                    board.grid[row, col] = current_turn
+                    board.flip(col, row, current_turn, directions_to_check)
+                    current_turn = -current_turn
+
+
 
             else:
                 if event.type == pygame.MOUSEBUTTONDOWN:
