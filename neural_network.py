@@ -197,7 +197,7 @@ def convert_to_tenser(board, current_player):
 def minimax_data_gathering(games_to_generate):
     # Initialize all necessary variables
     board = Board()
-    current_turn = BLACK
+    current_turn = random.choice([1, -1])
     no_valid_move_counter = 0
     current_game_states = []
     current_turn_list = []
@@ -239,7 +239,8 @@ def minimax_data_gathering(games_to_generate):
                 cloned_board.grid[row, col] = current_turn
                 cloned_board.flip(col, row, current_turn, directions_to_check)
 
-                score = cloned_board.minimax(depth, -current_turn, 0, alfa, beta, borders)
+                score = cloned_board.minimax(depth, current_turn, no_valid_move_counter, alfa, beta, borders,
+                                             maximizing_player)
 
                 if current_turn == WHITE:
                     if score > best_score:
@@ -286,7 +287,7 @@ def minimax_data_gathering(games_to_generate):
             current_game_states = []
             current_turn_list = []
             board = Board()
-            current_turn = BLACK
+            current_turn = random.choice([1, -1])
             no_valid_move_counter = 0
 
     states_array = np.array(all_board_states)
@@ -422,6 +423,7 @@ def worker_process(games_to_generate, result_queue):
 
 class Board:
     def __init__(self):
+        directions_to_check = [(-1, 0), (-1, -1), (-1, 1), (1, -1), (1, 1), (0, 1), (1, 0), (0, -1)]
 
         # self.font = pygame.font.Font(None, 48)
         self.grid = np.zeros((BOARD_SIZE, BOARD_SIZE), dtype=int)
@@ -542,25 +544,25 @@ class Board:
                                         (255, 255, 255))
         screen.blit(text_surface, (200, 800))
 
-    def evaluate_player(self, winner, valid_moves, current_turn, borders, directions_to_check):
+    def evaluate_player(self):
         # funkce hodnotí pozici na desce
         white_points = 0
         black_points = 0
-        score = 0
-        # vyvolá funkci pomocí které upravuje Weighted board (jak jsou hodnocené jednotlivé pozice) podle toho, v jaké
-        # části je hra (kolik tahů bylo odehráno)
+
+        # vyvolá funkci pomocí které upravuje Weighted board (jak jsou hodnocené jednotlivé pozice) podle toho,
+        # v jaké části je hra (kolik tahů bylo odehráno)
         self.WEIGHTED_BOARD = update_weighted_board(self)
 
-        # použije funkci np.where která změní 0 a protihráčova (podle toho, jestli počítá bílé nebo černé body) pole na
-        # False a nepočítá je a hráčovo na True a počítá hodnotu která je na nich podle Weighted board, a ty potom sečte
-        # pomocí funkce sum a uloží do proměnné bodů které zrovna počítá
+        #  použije funkci np.where která změní 0 a protihráčova (podle toho, jestli počítá bílé nebo černé body) pole
+        #  na False a nepočítá je a hráčovo na True a počítá hodnotu která je na nich podle Weighted board, a ty potom
+        #  sečte pomocí funkce sum a uloží do proměnné bodů které zrovna počítá
 
         black_points = np.sum(np.where(self.grid == BLACK, self.WEIGHTED_BOARD, 0))
         white_points = np.sum(np.where(self.grid == WHITE, self.WEIGHTED_BOARD, 0))
 
-        # zde jsem se snažil zlepšit funkci tak, aby podle rohových bodů počítala kamínky které se nedají převrátit
-        # funkce je podle mě funkční, ale nevyřešil jsem problém toho, že hodnotila rohové a zbylé kamínky moc dobře a
-        # kvůli tomu hrála špatně
+        # zde jsem se snažil zlepšit funkci tak, aby podle rohových bodů počítala kamínky které se nedají převrátito
+        # funkce je podle mě funkční, ale nevyřešil jsem problém toho, že hodnotila rohové a zbylé kamínky moc dobře a kvůli tomu hrála špatně
+        # chtěl bych ale toto zlepšení a opravit v budoucnu
 
         # stable_pieces = []
         # for row,col in borders:
@@ -590,24 +592,13 @@ class Board:
 
         # přidává body podle toho, kolik je možných tahů, čím více tahů tím více bodů
 
-        # number_of_moves = 0
-        # for move in valid_moves:
-        # number_of_moves += 1
-
         # konečné sčítání bodů
-
-        # if current_turn == 1:
-        # white_points += (number_of_moves * 35)
-        # else:
-        # black_points += (number_of_moves * 35)
-
-        if current_turn == 1:
-            score = white_points - black_points
-            return score
-
-        else:
-            score = black_points - white_points
-            return score
+        mobility_weight = 5
+        my_moves = len(self.check_for_valid_show(WHITE, directions_to_check))
+        opp_moves = len(self.check_for_valid_show(BLACK, directions_to_check))
+        mobility_term = mobility_weight * (my_moves - opp_moves)
+        # konzistentní skóre: vždy WHITE - BLACK + mobilita(se znam.)
+        return (white_points - black_points) + mobility_term
 
     def clone_board(self):
         # funkce která kopíruje desku a vytváří z ní samostatný objekt který neovlivnuje originál
@@ -616,38 +607,39 @@ class Board:
 
         return clone
 
-    def minimax(self, depth, current_turn, no_valid_move_counter, alfa, beta, borders):
-        # nastavil jsem základní hodnotu ohodnocení na kladné a záporné nekonečno
-        max_eval = float('-inf')
-        min_eval = float('inf')
-
-        # zjistím jestli skončila hra a spustím také funkci valid_moves (aby funkce evaluate mohla fungovat)
+    def minimax(self, depth, current_turn, no_valid_move_counter, alfa, beta, borders, maximizing_player):
         end_of_the_match, white_points, black_points, winner = self.end_of_match()
+        maximizing_player = (current_turn == WHITE)
+        # nastavil jsem základní hodnotu ohodnocení na kladné a záporné nekonečno
+        best = float('-inf')
+
         valid_moves = self.check_for_valid_show(current_turn, directions_to_check)
         # zjistím jestli algoritmus došel na konec hry nebo došel do hloubky nula
         # pokud ano, funkce vrátí konečné ohodnocení desky
+        # zjistím jestli skončila hra a  spustím také funkci valid_moves (aby funkce evaluate mohla fungovat)
         if end_of_the_match or depth == 0:
-            return self.evaluate_player(winner, valid_moves, current_turn, borders, directions_to_check)
+            if winner == WHITE:
+                white_points = 10000
+                return white_points
+            elif winner == BLACK:
+                black_points = 10000
+                return black_points
+            return self.evaluate_player()
 
-        valid_moves = self.check_for_valid_show(current_turn, directions_to_check)
         # jestli je možné hrát a pokud ani jeden nemůže hrát ukončí hru
+        # jednotná stop podmínka
+        if end_of_the_match or depth == 0 or no_valid_move_counter >= 2:
+            return self.evaluate_player()
+
         if not valid_moves:
-            if current_turn == 1:
-                current_turn = -current_turn
-                no_valid_move_counter += 1
+            # Simply pass turn and increment counter
+            return self.minimax(depth, -current_turn, no_valid_move_counter + 1, alfa, beta, borders,
+                                not maximizing_player)
 
-            elif current_turn == -1:
-                current_turn = -current_turn
-                no_valid_move_counter += 1
-            if no_valid_move_counter == 2:
-                return self.evaluate_player(winner, valid_moves, current_turn, borders, directions_to_check)
-
-            return self.minimax(depth, -current_turn, no_valid_move_counter, alfa, beta, borders)
-
-        if valid_moves:
-            no_valid_move_counter = 0
+        no_valid_move_counter = 0
         # minimax algoritmus hraje za bílého neboli 1
-        if current_turn == 1:
+        if maximizing_player:  # Proper maximizing logic
+            best = float('-inf')
             for move in valid_moves:
                 row, col = move
                 # udělám kopii stavu desky
@@ -668,19 +660,21 @@ class Board:
                 cloned_board.flip(col, row, current_turn, directions_to_check)
                 # zavoláme funkci minimax kde ale změníme hloubku na hloubku -1 a změníme hráče na protihráče a naopak
                 # (pokud skončí hra nebo funkce dojde na hloubku 0, řetěz funkcí se přeruší a funkce vrátí nejlepší hodnotu)
-                eval = cloned_board.minimax(depth - 1, -current_turn, no_valid_move_counter, alfa, beta, borders)
+                eval = cloned_board.minimax(depth - 1, -current_turn, no_valid_move_counter, alfa, beta, borders,
+                                            maximizing_player)
                 # zhodnotí zdali je skore lepší než nejlepší dosavadní skore
-                max_eval = max(max_eval, eval)
-                # vyhodnoti zda-li je nový tah lepší než dozatimní nejlepší tah
+                best = max(best, eval)
+                # vyhodnotí zda-li je nový tah lepší než dosavadní nejlepší tah
                 alfa = max(alfa, eval)
                 # zjistíme jestli max hráč má lepší skore než minimální skore min hráče a pokud ano, tuto větev
                 # můžeme odstranit, jelikož min hráč si ji nikdy nevybere, takže není důvod dále počítat možné tahy v této větvi
                 if alfa >= beta:
                     break
             # vrátí nejlepší skore max hráče v této hloubce
-            return max_eval
+            return best
 
         else:
+            best = float('+inf')
             for move in valid_moves:
                 # stejné jako max jenom hledáme minimum místo maxima
                 row, col = move
@@ -693,14 +687,15 @@ class Board:
                 # cloned_board.font = self.font
                 cloned_board.flip(col, row, current_turn, directions_to_check)
 
-                eval = cloned_board.minimax(depth - 1, -current_turn, no_valid_move_counter, alfa, beta, borders)
-                min_eval = min(min_eval, eval)
+                eval = cloned_board.minimax(depth - 1, -current_turn, no_valid_move_counter, alfa, beta, borders,
+                                            maximizing_player)
+                best = min(best, eval)
                 beta = min(beta, eval)
 
                 if alfa >= beta:
                     break
 
-            return min_eval
+            return best
 
 
 class QLearningAgent:
@@ -887,8 +882,8 @@ class Neural_agent(nn.Module):
 
 if __name__ == '__main__':
     dataset_path = "C:/Users/micha/reversi_cursor/reversi_dataset_minimax.npz"
-    total_games = 200
-    num_processes = 10
+    total_games = 20
+    num_processes = 1
 
     run_data_generation(dataset_path, total_games, num_processes)
 
