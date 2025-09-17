@@ -94,7 +94,14 @@ epsilon_decay = 0.995
 min_epsilon = 0.01
 num_episodes = 50000
 
-save_path = "C:/Users/micha/reversi_cursor/'reversi_model_nn.pth"
+save_path = "C:/Users/micha/reversi_cursor/reversi_model_nn.pth"
+dataset_path = "C:/Users/micha/reversi_cursor/reversi_dataset_minimax_test.npz"
+
+
+def create_a_board(board_state):
+    board_instance = Board()
+    board_instance.grid = np.array(board_state, dtype=int, copy=True)
+    return board_instance
 
 
 def get_borders(BOARD_SIZE):
@@ -174,20 +181,22 @@ def update_depth(board):
         return 5
 
 
-def convert_to_tenser(board, current_player):
+def convert_to_tensor(board_state, current_player):
+    board = create_a_board(board_state)
+
     # makes a board that is composed of 0 and 1  the ones are the possible moves a player can make``
-    possible_moves = board.valid_moves_board(current_player)
+    possible_moves = board.valid_moves_board(current_player, directions_to_check).astype(np.float32)
     # findes and converts the player in to True False and then in to numbers---flaout 32 because we dont need that big of a number
-    my_pieces_plane = (board == current_player).astype(np.float32)
-    opponent_pieces_plane = (board == -current_player).astype(np.float32)
+    my_pieces_plane = (board.grid == current_player).astype(np.float32)
+    opponent_pieces_plane = (board.grid == -current_player).astype(np.float32)
     # layer the arrays on to each other to make one
-    stacked_planes = np.stack([my_pieces_plane, opponent_pieces_plane, possible_moves])
+    stacked_planes = np.stack([my_pieces_plane, opponent_pieces_plane, possible_moves], axis=0)
     # flatten the array to 1 dimention so it can be prossesed by the neural network
-    flattend_planes = stacked_planes.flatten()
+    flat = stacked_planes.reshape(-1)
     # make a array for the turn so the neural network always knows whos turn it is
     turn = np.array([current_player], dtype=np.float32)
     # conect it with the other flatend array
-    input_batch = np.concatenate(flattend_planes, turn)
+    input_batch = np.concatenate([flat, turn], axis=0)
     # converts the np array into a tenser for better work by pytorch and the neural network
     board_tensor = torch.from_numpy(input_batch)
     # makes a tenser that can be used in the neural network when for example we are inputing multiple boardes for training
@@ -303,13 +312,16 @@ def training_on_data(model, dataset_path, num_epochs, learning_rate, save_path):
     board_states = data['boards']
     game_outcomes = data['outcomes']
     turns = data['turns']
-
-    loss_function = nn.MSELoss()
+    # panalizes errors quadraticli big mistakes big changes... can be worst when thre are outliers or uncurton outcomes
+    # nn.MSELoss()
+    # uses quadratic and linear penalization more safe and stabel
+    loss_function = nn.SmoothL1Loss()
     optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 
     # puts the model in training mode deactivets some neurons that  could cose overfitting
     model.train()
     print("starting training")
+    print(f"dataset size: {len(board_states)} states")
 
     for epoch in range(num_epochs):
         total_loss = 0.0
@@ -318,24 +330,26 @@ def training_on_data(model, dataset_path, num_epochs, learning_rate, save_path):
             board = board_states[i]
             outcome = game_outcomes[i]
             turn = turns[i]
-        # odstanime hodnoty z minuleho kroku
-        optimizer.zero_grad()
-        # hru převedu do tenseru
-        tenser = convert_to_tenser(board, turn)
-        # výsledek hry převedu do tenseru
-        target_tensor = torch.tensor([[outcome]], dtype=torch.float32)
-        # model mi da jeho tah
-        prediction = model(tenser)
-        # zjistim jak moc dobrej nebo spatnej to byl tah
-        loss = loss_function(prediction, target_tensor)
-        # vypocita upravu weights a bias
-        loss.backward()
-        # upravo weights a bias
-        optimizer.step()
-        # celkovy ukazatel zpravnosti odpovedi podle ktereho lze poznat jestli se model zpravne uci
-        total_loss += loss.item()
+            # odstanime hodnoty z minuleho kroku
+            optimizer.zero_grad()
+            # hru převedu do tenseru
+            tenser = convert_to_tensor(board, turn)
+            # výsledek hry převedu do tenseru
+            winner = outcome * turn  # ???
+            target_tensor = torch.tensor([[winner]], dtype=torch.float32)
+            # model mi da jeho predikci
+            prediction = model(tenser)
+            # zjistim jak moc dobrej nebo spatnej to byl tah
+            loss = loss_function(prediction, target_tensor)
+            # vypocita upravu weights a bias
+            loss.backward()
+            # upravo weights a bias
+            optimizer.step()
+            # celkovy ukazatel zpravnosti odpovedi podle ktereho lze poznat jestli se model zpravne uci
+            total_loss += loss.item()
 
-        avg_loss = total_loss / len(board_states)
+            avg_loss = total_loss / len(board_states)
+
         print(f"Epoch {epoch + 1}/{num_epochs} complete | Average Loss: {avg_loss}")
 
     torch.save(model.state_dict(), save_path)
@@ -622,7 +636,7 @@ class Board:
                 white_points = 10000
                 return white_points
             elif winner == BLACK:
-                black_points = 10000
+                black_points = -10000
                 return black_points
             return self.evaluate_player()
 
@@ -838,7 +852,7 @@ class QLearningAgent:
 
 class Neural_agent(nn.Module):
     def __init__(self) -> None:
-        super(self).__init__()
+        super().__init__()
         input_size = 193  # 3*8*8 + 1
 
         self.body = nn.Sequential(
@@ -881,24 +895,32 @@ class Neural_agent(nn.Module):
 
 
 if __name__ == '__main__':
-    dataset_path = "C:/Users/micha/reversi_cursor/reversi_dataset_minimax.npz"
-    total_games = 20
-    num_processes = 1
 
-    run_data_generation(dataset_path, total_games, num_processes)
+    total_games = 10
+    num_processes = 10
 
-    print("\nData generation script finished successfully.")
+    num_epochs = 10
+    learning_rate = 1e-3
+    # run_data_generation(dataset_path, total_games,num_processes)
+    # print("\nData generation script finished successfully.")
+
+    model = Neural_agent()
+    training_on_data(model, dataset_path, num_epochs, learning_rate, save_path)
 
     pygame.quit()
     sys.exit()
+
     borders = get_borders(BOARD_SIZE)
     board = Board()
     mouse_x, mouse_y = 0, 0
+
     play = False
     no_valid_move_counter = 0
+
     agent = QLearningAgent(alpha, gamma, epsilon)
     # agent.train( num_episodes,filename)
     AI_turn = 1
+
     agent_pro = QLearningAgent(alpha, gamma, 0)
     agent_pro.load_qtable(filename)
 
@@ -1011,3 +1033,4 @@ if __name__ == '__main__':
     # alpha zero methonod
     # two heads method
     # other imporvements
+

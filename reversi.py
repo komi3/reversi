@@ -146,6 +146,7 @@ pygame.display.set_caption('Reversi')
 
 class Board:
     def __init__(self):
+        directions_to_check = [(-1, 0), (-1, -1), (-1, 1), (1, -1), (1, 1), (0, 1), (1, 0), (0, -1)]
         # Vytvoří hrací desku a základní pozice
         self.font = pygame.font.Font(None, 48)
         self.grid = np.zeros((BOARD_SIZE, BOARD_SIZE), dtype=int)
@@ -278,11 +279,11 @@ class Board:
                                         (255, 255, 255))
         screen.blit(text_surface, (200, 800))
 
-    def evaluate_player(self, winner, valid_moves, directions_to_check, current_turn, borders):
+    def evaluate_player(self):
         # funkce hodnotí pozici na desce
         white_points = 0
         black_points = 0
-        score = 0
+
         # vyvolá funkci pomocí které upravuje Weighted board (jak jsou hodnocené jednotlivé pozice) podle toho,
         # v jaké části je hra (kolik tahů bylo odehráno)
         self.WEIGHTED_BOARD = update_weighted_board(self)
@@ -325,11 +326,12 @@ class Board:
         # black_points += 10
 
         # přidává body podle toho, kolik je možných tahů, čím více tahů tím více bodů
-        number_of_moves = len(valid_moves)
+
         # konečné sčítání bodů
         mobility_weight = 5
-        mobility_term = mobility_weight * (len(valid_moves) if current_turn == WHITE else -len(valid_moves))
-
+        my_moves = len(self.check_for_valid_show(WHITE, directions_to_check))
+        opp_moves = len(self.check_for_valid_show(BLACK, directions_to_check))
+        mobility_term = mobility_weight * (my_moves - opp_moves)
         # konzistentní skóre: vždy WHITE - BLACK + mobilita(se znam.)
         return (white_points - black_points) + mobility_term
 
@@ -350,12 +352,18 @@ class Board:
         # pokud ano, funkce vrátí konečné ohodnocení desky
         # zjistím jestli skončila hra a  spustím také funkci valid_moves (aby funkce evaluate mohla fungovat)
         if end_of_the_match or depth == 0:
-            return self.evaluate_player(winner, valid_moves, directions_to_check, current_turn, borders)
+            if winner == WHITE:
+                white_points = 10000
+                return white_points
+            elif winner == BLACK:
+                black_points = 10000
+                return black_points
+            return self.evaluate_player()
 
         # jestli je možné hrát a pokud ani jeden nemůže hrát ukončí hru
         # jednotná stop podmínka
         if end_of_the_match or depth == 0 or no_valid_move_counter >= 2:
-            return self.evaluate_player(winner, valid_moves, directions_to_check, current_turn, borders)
+            return self.evaluate_player()
 
         if not valid_moves:
             # Simply pass turn and increment counter
