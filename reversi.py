@@ -491,7 +491,7 @@ class QLearningAgent:
                 no_valid_move_counter = 0
 
                 move = self.get_action(board, valid_moves)
-                # ... rest of your code ...
+
 
                 # Make the move and get new state
                 row, col = move
