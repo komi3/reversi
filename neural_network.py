@@ -203,6 +203,26 @@ def convert_to_tensor(board_state, current_player):
     return board_tensor.unsqueeze(0)
 
 
+def convert_to_tensor_board(board, current_player):
+    # makes a board that is composed of 0 and 1  the ones are the possible moves a player can make``
+    possible_moves = board.valid_moves_board(current_player, directions_to_check).astype(np.float32)
+    # findes and converts the player in to True False and then in to numbers---flaout 32 because we dont need that big of a number
+    my_pieces_plane = (board.grid == current_player).astype(np.float32)
+    opponent_pieces_plane = (board.grid == -current_player).astype(np.float32)
+    # layer the arrays on to each other to make one
+    stacked_planes = np.stack([my_pieces_plane, opponent_pieces_plane, possible_moves], axis=0)
+    # flatten the array to 1 dimention so it can be prossesed by the neural network
+    flat = stacked_planes.reshape(-1)
+    # make a array for the turn so the neural network always knows whos turn it is
+    turn = np.array([current_player], dtype=np.float32)
+    # conect it with the other flatend array
+    input_batch = np.concatenate([flat, turn], axis=0)
+    # converts the np array into a tenser for better work by pytorch and the neural network
+    board_tensor = torch.from_numpy(input_batch)
+    # makes a tenser that can be used in the neural network when for example we are inputing multiple boardes for training
+    return board_tensor.unsqueeze(0)
+
+
 def minimax_data_gathering(games_to_generate):
     # Initialize all necessary variables
     board = Board()
@@ -335,7 +355,7 @@ def training_on_data(model, dataset_path, num_epochs, learning_rate, save_path):
             # hru převedu do tenseru
             tenser = convert_to_tensor(board, turn)
             # výsledek hry převedu do tenseru
-            winner = outcome * turn  # ???
+            winner = outcome * turn
             target_tensor = torch.tensor([[winner]], dtype=torch.float32)
             # model mi da jeho predikci
             prediction = model(tenser)
@@ -726,7 +746,7 @@ class QLearningAgent:
         return tuple(map(tuple, board.grid))
 
     def train(self, num_episodes, filename):
-        agent.load_qtable(filename)
+        self.load_qtable(filename)
         # Initialize tracking variables
         total_wins = 0
         total_losses = 0
@@ -897,7 +917,7 @@ class Neural_agent(nn.Module):
 if __name__ == '__main__':
 
     total_games = 10
-    num_processes = 10
+    num_processes = 2
 
     num_epochs = 10
     learning_rate = 1e-3
@@ -907,9 +927,6 @@ if __name__ == '__main__':
     model = Neural_agent()
     training_on_data(model, dataset_path, num_epochs, learning_rate, save_path)
 
-    pygame.quit()
-    sys.exit()
-
     borders = get_borders(BOARD_SIZE)
     board = Board()
     mouse_x, mouse_y = 0, 0
@@ -917,12 +934,12 @@ if __name__ == '__main__':
     play = False
     no_valid_move_counter = 0
 
-    agent = QLearningAgent(alpha, gamma, epsilon)
-    # agent.train( num_episodes,filename)
-    AI_turn = 1
+    model.load(save_path)
 
-    agent_pro = QLearningAgent(alpha, gamma, 0)
-    agent_pro.load_qtable(filename)
+    pygame.init()
+    screen = pygame.display.set_mode((SCREEN_SIZE, window_size))
+    pygame.display.set_caption('Reversi')
+    font = pygame.font.Font(None, 48)
 
     while True:
         pygame.display.flip()
@@ -966,22 +983,16 @@ if __name__ == '__main__':
                 end_of_the_match, white_points, black_points, winner = board.end_of_match()
 
                 if current_turn == 1:
-                    # current_state = agent.get_state_key(board)
-                    move = agent.get_action(board, valid_moves)
-                    print(move)
+                    tenser = convert_to_tensor_board(board, current_turn)
+                    prediction = model(tenser)
+                    for row, col in prediction:
+                        if [row, col] in valid_moves:
+                            board.grid[row, col] = current_turn
+                            board.flip(col, row, current_turn, directions_to_check)
+                            current_turn = -current_turn
+                        else:
+                            print("this move is impossible")
 
-                    row, col = move
-                    board.grid[row, col] = current_turn
-                    board.flip(col, row, current_turn, directions_to_check)
-                    # reward = board.evaluate_player(None, valid_moves, directions_to_check, current_turn, borders)
-
-                    # next_state = agent.get_state_key(board)
-                    # next_valid_moves = board.check_for_valid_show(-current_turn, directions_to_check)
-
-                    # state_action = (current_state, tuple(move))
-                    # agent.learn(state_action, reward, next_state, next_valid_moves)
-
-                    current_turn = -current_turn
                 pygame.display.flip()
 
                 if current_turn == -1:
@@ -993,15 +1004,14 @@ if __name__ == '__main__':
                         if [row, col] in valid_moves:
                             board.grid[row, col] = current_turn
                             board.flip(col, row, current_turn, directions_to_check)
-                            pygame.display.flip()
                             # po odehrání hraje protihráč
                             if current_turn == 1:
                                 current_turn = -1
                             elif current_turn == -1:
                                 current_turn = 1
-                            pygame.display.flip()
                         else:
                             print("this move is impossible")
+
                 pygame.display.flip()
 
             pygame.display.flip()
