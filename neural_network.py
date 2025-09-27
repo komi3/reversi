@@ -1,3 +1,4 @@
+from math import inf
 import pygame
 import sys
 import numpy as np
@@ -455,6 +456,30 @@ def worker_process(games_to_generate, result_queue):
     result_queue.put({'states': states, 'outcomes': outcomes, 'turns': turns})
 
 
+def AI_plays(model, current_player, board):
+    best_move = None
+    best_score = float('-inf')
+    valid_moves = board.check_for_valid_show(current_turn, directions_to_check)
+
+    if not valid_moves:
+        return None
+
+    for move in valid_moves:
+        row, col = move
+        board_copy = board.clone_board()
+        board_copy.grid[row, col] = current_turn
+        board_copy.flip(col, row, current_turn, directions_to_check)
+        tensor = convert_to_tensor_board(board_copy, current_player)
+        # Model vrací predikci hodnoty pozice
+        with torch.no_grad():  # Nepočítej gradienty při inference
+            score = model(tensor).item()  # .item() převede tensor na číslo
+        if score > best_score:
+            best_score = score
+            best_move = [row, col]
+
+    return best_move
+
+
 class Board:
     def __init__(self):
         directions_to_check = [(-1, 0), (-1, -1), (-1, 1), (1, -1), (1, 1), (0, 1), (1, 0), (0, -1)]
@@ -567,6 +592,7 @@ class Board:
                                        SQUARE_SIZE // 2 - 5)
 
     def draw_points(self, white_points, black_points, current_turn):
+        self.font = pygame.font.Font(None, 48)
 
         if current_turn == 1:
             current_turn = "White"
@@ -925,7 +951,7 @@ if __name__ == '__main__':
     # print("\nData generation script finished successfully.")
 
     model = Neural_agent()
-    training_on_data(model, dataset_path, num_epochs, learning_rate, save_path)
+    # training_on_data(model, dataset_path, num_epochs, learning_rate, save_path)
 
     borders = get_borders(BOARD_SIZE)
     board = Board()
@@ -935,6 +961,7 @@ if __name__ == '__main__':
     no_valid_move_counter = 0
 
     model.load(save_path)
+    model.eval()
 
     pygame.init()
     screen = pygame.display.set_mode((SCREEN_SIZE, window_size))
@@ -983,15 +1010,13 @@ if __name__ == '__main__':
                 end_of_the_match, white_points, black_points, winner = board.end_of_match()
 
                 if current_turn == 1:
-                    tenser = convert_to_tensor_board(board, current_turn)
-                    prediction = model(tenser)
-                    for row, col in prediction:
-                        if [row, col] in valid_moves:
+                    move = AI_plays(model, current_turn, board)
+                    for move_valid in valid_moves:
+                        if move == move_valid:
+                            row, col = move
                             board.grid[row, col] = current_turn
                             board.flip(col, row, current_turn, directions_to_check)
                             current_turn = -current_turn
-                        else:
-                            print("this move is impossible")
 
                 pygame.display.flip()
 
