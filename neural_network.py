@@ -89,13 +89,14 @@ alpha = 0.5
 # Jak moc dulezite jsou dlouhodobe odmeny
 gamma = 0.95
 # Jak moc bude nas agent delat nahodne tahy
-epsilon = 0.5
+epsilon = 0.01
 # Jak moc se epsilon zmensuje casem
 epsilon_decay = 0.995
 min_epsilon = 0.01
 num_episodes = 50000
 
 save_path = "C:/Users/micha/reversi_cursor/reversi_model_nn.pth"
+save_path_temporery = "C:/Users/micha/reversi_cursor/reversi_model_nn_temporery.pth"
 dataset_path = "C:/Users/micha/reversi_cursor/reversi_dataset_minimax_test.npz"
 
 
@@ -397,7 +398,7 @@ def run_data_generation(dataset_path, games_per_process, num_processes):
     while completed_workers < num_processes:
         # try:
         # Wait for a result with timeout
-        result = result_queue.get()  # 30 second timeout
+        result = result_queue.get()
         print(f"  - Received result from worker. Contains {len(result.get('states', []))} states.")
 
         all_new_states.extend(result['states'])
@@ -456,7 +457,7 @@ def worker_process(games_to_generate, result_queue):
     result_queue.put({'states': states, 'outcomes': outcomes, 'turns': turns})
 
 
-def AI_plays(model, current_player, board):
+def AI_plays(model, current_turn, board):
     best_move = None
     best_score = float('-inf')
     valid_moves = board.check_for_valid_show(current_turn, directions_to_check)
@@ -469,15 +470,147 @@ def AI_plays(model, current_player, board):
         board_copy = board.clone_board()
         board_copy.grid[row, col] = current_turn
         board_copy.flip(col, row, current_turn, directions_to_check)
-        tensor = convert_to_tensor_board(board_copy, current_player)
+        tensor = convert_to_tensor_board(board_copy, current_turn)
         # Model vrací predikci hodnoty pozice
-        with torch.no_grad():  # Nepočítej gradienty při inference
+        with torch.no_grad():  # Nepočítej gradienty při inference, neukládá graf hodnot neuronu(nesnaží se je zlepšit je jen zaměřen na hraní)
             score = model(tensor).item()  # .item() převede tensor na číslo
         if score > best_score:
             best_score = score
             best_move = [row, col]
 
     return best_move
+
+
+def AI_self_play_data_generation(model, games_to_generate):
+    # Initialize all necessary variables
+    move = None
+    model.eval()
+    board = Board()
+    current_turn = random.choice([1, -1])
+    no_valid_move_counter = 0
+    current_game_states = []
+    current_turn_list = []
+    all_board_states = []
+    all_game_outcomes = []
+    all_turns = []
+    games_played = 0
+    borders = get_borders(BOARD_SIZE)
+
+    while games_played < games_to_generate:
+        valid_moves = board.check_for_valid_show(current_turn, directions_to_check)
+        current_game_states.append(board.grid.copy())
+        current_turn_list.append(current_turn)
+
+        end_of_the_match = False
+
+        if not valid_moves:
+            no_valid_move_counter += 1
+            if no_valid_move_counter >= 2:
+                end_of_the_match = True
+            else:
+                current_turn = -current_turn
+                continue
+        else:
+            no_valid_move_counter = 0
+
+        if not end_of_the_match:
+            move = AI_plays(model, current_turn, board)
+            print(move)
+            if move is None or move not in valid_moves:
+                row, col = random.choice(valid_moves)
+                board.grid[row, col] = current_turn
+                board.flip(col, row, current_turn, directions_to_check)
+                current_turn = -current_turn
+                end_of_the_match, white_points, black_points, winner = board.end_of_match()
+            else:
+                row, col = move
+                board.grid[row, col] = current_turn
+                board.flip(col, row, current_turn, directions_to_check)
+                current_turn = -current_turn
+                end_of_the_match, white_points, black_points, winner = board.end_of_match()
+
+        if end_of_the_match:
+            games_played += 1
+            print(f"Game{games_played} winner:{winner}")
+
+            if winner == "white":
+                outcome = 1.0
+            elif winner == "black":
+                outcome = -1.0
+            else:
+                outcome = 0.0
+
+            for i in range(len(current_game_states)):
+                state = current_game_states[i]
+                turn = current_turn_list[i]
+                all_board_states.append(state)
+                all_game_outcomes.append(outcome)
+                all_turns.append(turn)
+
+            current_game_states = []
+            current_turn_list = []
+            board = Board()
+            current_turn = random.choice([1, -1])
+            no_valid_move_counter = 0
+
+    states_array = np.array(all_board_states)
+    outcomes_array = np.array(all_game_outcomes)
+    turn_array = np.array(all_turns)
+
+    return states_array, outcomes_array, turn_array
+
+
+def training_AI(model, board_states, game_outcomes, turns):
+    model.load(save_path)
+    # panalizes errors quadraticli big mistakes big changes... can be worst when thre are outliers or uncurton outcomes
+    # nn.MSELoss()
+    # uses quadratic and linear penalization more safe and stabel
+    loss_function = nn.SmoothL1Loss()
+    optimizer = optim.Adam(model.parameters(), lr=learning_rate)
+
+    # puts the model in training mode deactivets some neurons that  could cose overfitting
+    model.train()
+    print("starting training")
+    print(f"dataset size: {len(board_states)} states")
+
+    for epoch in range(num_epochs):
+        total_loss = 0.0
+
+        for i in range(len(board_states)):
+            board = board_states[i]
+            outcome = game_outcomes[i]
+            turn = turns[i]
+            # odstanime hodnoty z minuleho kroku
+            optimizer.zero_grad()
+            # hru převedu do tenseru
+            tenser = convert_to_tensor(board, turn)
+            # výsledek hry převedu do tenseru
+            winner = outcome * turn
+            target_tensor = torch.tensor([[winner]], dtype=torch.float32)
+            # model mi da jeho predikci
+            prediction = model(tenser)
+            # zjistim jak moc dobrej nebo spatnej to byl tah
+            loss = loss_function(prediction, target_tensor)
+            # vypocita upravu weights a bias
+            loss.backward()
+            # upravo weights a bias
+            optimizer.step()
+            # celkovy ukazatel zpravnosti odpovedi podle ktereho lze poznat jestli se model zpravne uci
+            total_loss += loss.item()
+
+            avg_loss = total_loss / len(board_states)
+
+        print(f"Epoch {epoch + 1}/{num_epochs} complete | Average Loss: {avg_loss}")
+
+    torch.save(model.state_dict(), save_path)
+    print(f"--- Training Finished. Model saved to {save_path} ---")
+
+
+def AI_self_trainig_full_function(model, epochs):
+    for epoch in range(epochs):
+        model.load(save_path)
+        board_states, game_outcomes, turns = AI_self_play_data_generation(model, 50)
+        training_AI(model, board_states, game_outcomes, turns)
 
 
 class Board:
@@ -946,12 +1079,14 @@ if __name__ == '__main__':
     num_processes = 2
 
     num_epochs = 10
-    learning_rate = 1e-3
+    learning_rate = 1e-5
     # run_data_generation(dataset_path, total_games,num_processes)
     # print("\nData generation script finished successfully.")
 
     model = Neural_agent()
     # training_on_data(model, dataset_path, num_epochs, learning_rate, save_path)
+
+    AI_self_trainig_full_function(model, num_epochs)
 
     borders = get_borders(BOARD_SIZE)
     board = Board()
@@ -1053,19 +1188,7 @@ if __name__ == '__main__':
 
         pygame.display.flip()
 
-    # input layer 64 * 3 input layers with each square repersented
-    # hidden lauyer 40 to 128 neurons
-    # single output layer
-    # make a foward function
-    # ReLU function discareds neurons that recognize a pattern that usually lead to a bad game ---> bad outcome
-    #                                                    ---> it makes the neural network faster
+# self play
+# AI model vs AI model
 
-    # self-play training function
-
-    # create a data set with a minimax algortihm this will be the starting data set for the neural network
-    # then adjast the weights acordingli for the best resoluts
-    # qtable data will be used as experience replay buffer to futer test the ablilites and adjust them acordingli    collections.deque,ReplayMemory
-    # alpha zero methonod
-    # two heads method
-    # other imporvements
 
