@@ -79,7 +79,7 @@ current_turn = - 1
 
 # inicializace základních proměnných pro minimax algoritmus
 maximizing_player = True
-depth = 3
+depth = 1
 
 alfa = float('-inf')
 beta = float('inf')
@@ -96,8 +96,14 @@ min_epsilon = 0.01
 num_episodes = 50000
 
 save_path = "C:/Users/micha/reversi_cursor/reversi_model_nn.pth"
-save_path_temporery = "C:/Users/micha/reversi_cursor/reversi_model_nn_temporery.pth"
-dataset_path = "C:/Users/micha/reversi_cursor/reversi_dataset_minimax_test.npz"
+save_path_depth_1 = "C:/Users/micha/reversi_cursor/reversi_model_nn_depth_2.pth"
+save_path_depth_2_low = "C:/Users/micha/reversi_cursor/reversi_model_nn_depth_1.pth"
+save_path_depth_2 = "C:/Users/micha/reversi_cursor/reversi_model_nn_depth_2_normal.pth"
+save_path_depth_3 = "C:/Users/micha/reversi_cursor/reversi_model_nn_depth_3.pth"
+
+dataset_path_depth_1 = "C:/Users/micha/reversi_cursor/reversi_dataset_minimax_depth_1.npz"
+dataset_path_depth_2 = "C:/Users/micha/reversi_cursor/reversi_dataset_minimax_depth_2.npz"
+dataset_path_depth_3 = "C:/Users/micha/reversi_cursor/reversi_dataset_minimax_depth_3.npz"
 
 
 def create_a_board(board_state):
@@ -225,7 +231,7 @@ def convert_to_tensor_board(board, current_player):
     return board_tensor.unsqueeze(0)
 
 
-def minimax_data_gathering(games_to_generate):
+def minimax_data_gathering(games_to_generate, depth):
     # Initialize all necessary variables
     board = Board()
     current_turn = random.choice([1, -1])
@@ -237,7 +243,6 @@ def minimax_data_gathering(games_to_generate):
     all_turns = []
     games_played = 0
     borders = get_borders(BOARD_SIZE)
-    depth = 1
 
     while games_played < games_to_generate:
         valid_moves = board.check_for_valid_show(current_turn, directions_to_check)
@@ -378,14 +383,14 @@ def training_on_data(model, dataset_path, num_epochs, learning_rate, save_path):
     print(f"--- Training Finished. Model saved to {save_path} ---")
 
 
-def run_data_generation(dataset_path, games_per_process, num_processes):
+def run_data_generation(dataset_path, games_per_process, num_processes, depth):
     processes = []
     result_queue = multiprocessing.Queue()
 
     print(f"Starting {num_processes} worker processes, each generating {games_per_process} games...")
 
     for i in range(num_processes):
-        process = multiprocessing.Process(target=worker_process, args=(games_per_process, result_queue))
+        process = multiprocessing.Process(target=worker_process, args=(games_per_process, result_queue, depth))
         processes.append(process)
         process.start()
 
@@ -450,9 +455,9 @@ def run_data_generation(dataset_path, games_per_process, num_processes):
         print(f"\n[FATAL ERROR] FAILED to save the file: {e}")
 
 
-def worker_process(games_to_generate, result_queue):
+def worker_process(games_to_generate, result_queue, depth):
     # upravovat promenou muze jenom jedno vlakno ktere ma lock
-    states, outcomes, turns = minimax_data_gathering(games_to_generate)
+    states, outcomes, turns = minimax_data_gathering(games_to_generate, depth)
     print("worker_process")
     result_queue.put({'states': states, 'outcomes': outcomes, 'turns': turns})
 
@@ -611,6 +616,106 @@ def AI_self_trainig_full_function(model, epochs):
         model.load(save_path)
         board_states, game_outcomes, turns = AI_self_play_data_generation(model, 50)
         training_AI(model, board_states, game_outcomes, turns)
+
+
+def turnament(save_path, save_path_2, games_to_generate):
+    model = Neural_agent()
+    model_2 = Neural_agent()
+
+    model.load(save_path)
+    model_2.load(save_path_2)
+
+    white_wins = 0
+    black_wins = 0
+    draws = 0
+
+    model.eval()
+    model_2.eval()
+
+    board = Board()
+    current_turn = random.choice([1, -1])
+    no_valid_move_counter = 0
+    games_played = 0
+
+    while games_played < games_to_generate:
+        valid_moves = board.check_for_valid_show(current_turn, directions_to_check)
+
+        # Kontrola platných tahů
+        if not valid_moves:
+            no_valid_move_counter += 1
+            if no_valid_move_counter >= 2:
+                # Oba hráči nemohou táhnout - konec hry
+                end_of_the_match, white_points, black_points, winner = board.end_of_match()
+                games_played += 1
+                print(
+                    f"Game {games_played} winner: {winner} | White wins: {white_wins} | Black wins: {black_wins} | Draws: {draws}")
+
+                if winner == "white":
+                    white_wins += 1
+                elif winner == "black":
+                    black_wins += 1
+                else:
+                    draws += 1
+
+                # Reset hry
+                board = Board()
+                current_turn = random.choice([1, -1])
+                no_valid_move_counter = 0
+                continue
+            else:
+                # Pouze změna hráče
+                current_turn = -current_turn
+                continue
+
+        # Existují platné tahy - reset počítadla
+        no_valid_move_counter = 0
+
+        if current_turn == 1:
+            move = AI_plays(model, current_turn, board)
+
+            if move is None or move not in valid_moves:
+                row, col = random.choice(valid_moves)
+                board.grid[row, col] = current_turn
+                board.flip(col, row, current_turn, directions_to_check)
+                current_turn = -current_turn
+                end_of_the_match, white_points, black_points, winner = board.end_of_match()
+            else:
+                row, col = move
+                board.grid[row, col] = current_turn
+                board.flip(col, row, current_turn, directions_to_check)
+                current_turn = -current_turn
+                end_of_the_match, white_points, black_points, winner = board.end_of_match()
+
+        if current_turn == - 1:
+            move = AI_plays(model_2, current_turn, board)
+
+            if move is None or move not in valid_moves:
+                row, col = random.choice(valid_moves)
+                board.grid[row, col] = current_turn
+                board.flip(col, row, current_turn, directions_to_check)
+                current_turn = -current_turn
+                end_of_the_match, white_points, black_points, winner = board.end_of_match()
+            else:
+                row, col = move
+                board.grid[row, col] = current_turn
+                board.flip(col, row, current_turn, directions_to_check)
+                current_turn = -current_turn
+                end_of_the_match, white_points, black_points, winner = board.end_of_match()
+
+        if end_of_the_match:
+            games_played += 1
+            print(f"Game{games_played} winner:{winner} white wins:{white_wins} black wins:{black_wins} draws:{draws}")
+
+            if winner == "white":
+                white_wins = white_wins + 1
+            elif winner == "black":
+                black_wins = black_wins + 1
+            else:
+                draws = draws + 1
+
+            board = Board()
+            current_turn = random.choice([1, -1])
+            no_valid_move_counter = 0
 
 
 class Board:
@@ -1074,20 +1179,21 @@ class Neural_agent(nn.Module):
 
 
 if __name__ == '__main__':
-
-    total_games = 10
-    num_processes = 2
-
+    total_games_turnament = 101
+    total_games = 100
+    num_processes = 10
+    depth = 2
     num_epochs = 10
-    learning_rate = 1e-5
-    # run_data_generation(dataset_path, total_games,num_processes)
+    learning_rate = 1e-3
+    # run_data_generation(dataset_path_depth_2, total_games,num_processes,depth)
     # print("\nData generation script finished successfully.")
 
-    model = Neural_agent()
-    # training_on_data(model, dataset_path, num_epochs, learning_rate, save_path)
+    model_1 = Neural_agent()
 
-    AI_self_trainig_full_function(model, num_epochs)
+    # training_on_data(model_1, dataset_path_depth_2, num_epochs, learning_rate, save_path_depth_2)
 
+    # AI_self_trainig_full_function(model,num_epochs)
+    turnament(save_path_depth_2, save_path_depth_2_low, total_games_turnament)
     borders = get_borders(BOARD_SIZE)
     board = Board()
     mouse_x, mouse_y = 0, 0
@@ -1095,6 +1201,7 @@ if __name__ == '__main__':
     play = False
     no_valid_move_counter = 0
 
+    model = Neural_agent()
     model.load(save_path)
     model.eval()
 
@@ -1124,25 +1231,30 @@ if __name__ == '__main__':
                     if current_turn == 1:
                         current_turn = -current_turn
                         no_valid_move_counter += 1
-                        print(no_valid_move_counter)
+
+
                     elif current_turn == -1:
                         current_turn = -current_turn
                         no_valid_move_counter += 1
-                        print(no_valid_move_counter)
 
-                if no_valid_move_counter == 2:
-                    print(no_valid_move_counter)
-                    end_of_the_match, white_points, black_points, winner = board.end_of_match()
-                    print(f"white:{white_points}   black:{black_points}       winner:{winner}")
-                    board = Board()
-                    current_turn = -1
-                    game_mode = "playing"
-                    break
+                        no_valid_move_counter = 0
 
-                if valid_moves:
-                    no_valid_move_counter = 0
+                    if no_valid_move_counter == 2:
+                        end_of_the_match, white_points, black_points, winner = board.end_of_match()
+                        games_played += 1
+                        print(
+                            f"Game{games_played} winner:{winner} white wins:{white_wins} black wins:{black_wins} draws:{draws}")
 
-                end_of_the_match, white_points, black_points, winner = board.end_of_match()
+                        if winner == "white":
+                            white_wins = white_wins + 1
+                        elif winner == "black":
+                            black_wins = black_wins + 1
+                        else:
+                            draws = draws + 1
+
+                        board = Board()
+                        current_turn = random.choice([1, -1])
+                        no_valid_move_counter = 0
 
                 if current_turn == 1:
                     move = AI_plays(model, current_turn, board)
@@ -1190,5 +1302,3 @@ if __name__ == '__main__':
 
 # self play
 # AI model vs AI model
-
-
