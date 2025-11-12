@@ -96,11 +96,21 @@ min_epsilon = 0.01
 num_episodes = 50000
 
 save_path = "C:/Users/micha/reversi_cursor/reversi_model_nn.pth"
+# all ready trained on 1000 games
 save_path_depth_1 = "C:/Users/micha/reversi_cursor/reversi_model_nn_depth_2.pth"
 save_path_depth_2_low = "C:/Users/micha/reversi_cursor/reversi_model_nn_depth_1.pth"
 save_path_depth_2 = "C:/Users/micha/reversi_cursor/reversi_model_nn_depth_2_normal.pth"
-save_path_depth_3 = "C:/Users/micha/reversi_cursor/reversi_model_nn_depth_3.pth"
+save_path_depth_3 = "C:/Users/micha/reversi_cursor/reversi_model_nn_depth_3_new.pth"
 
+save_path_quality_1 = "C:/Users/micha/reversi_cursor/reversi_model_nn_quality_1.pth"
+save_path_quality_2 = "C:/Users/micha/reversi_cursor/reversi_model_nn_quality_2_20.pth"
+save_path_quality_3 = "C:/Users/micha/reversi_cursor/reversi_model_nn_quality_3.pth"
+
+save_path_quality_1_1 = "C:/Users/micha/reversi_cursor/reversi_model_nn_quality_1_1.pth"
+save_path_quality_2_1 = "C:/Users/micha/reversi_cursor/reversi_model_nn_quality_2_1.pth"
+save_path_quality_3_1 = "C:/Users/micha/reversi_cursor/reversi_model_nn_quality_3_1.pth"
+
+dataset_path_test = "C:/Users/micha/reversi_cursor/reversi_dataset_minimax_test.npz"
 dataset_path_depth_1 = "C:/Users/micha/reversi_cursor/reversi_dataset_minimax_depth_1.npz"
 dataset_path_depth_2 = "C:/Users/micha/reversi_cursor/reversi_dataset_minimax_depth_2.npz"
 dataset_path_depth_3 = "C:/Users/micha/reversi_cursor/reversi_dataset_minimax_depth_3.npz"
@@ -243,6 +253,8 @@ def minimax_data_gathering(games_to_generate, depth):
     all_turns = []
     games_played = 0
     borders = get_borders(BOARD_SIZE)
+    white_wins_in_training = 0
+    black_wins_in_training = 0
 
     while games_played < games_to_generate:
         valid_moves = board.check_for_valid_show(current_turn, directions_to_check)
@@ -329,6 +341,14 @@ def minimax_data_gathering(games_to_generate, depth):
     states_array = np.array(all_board_states)
     outcomes_array = np.array(all_game_outcomes)
     turn_array = np.array(all_turns)
+
+    for outcome in all_game_outcomes:
+        if outcome == 1.0:
+            white_wins_in_training += 1
+        elif outcome == -1.0:
+            black_wins_in_training += 1
+
+    print(f"Training data stats: WHITE wins: {white_wins_in_training}, BLACK wins: {black_wins_in_training}")
 
     return states_array, outcomes_array, turn_array
 
@@ -462,25 +482,42 @@ def worker_process(games_to_generate, result_queue, depth):
     result_queue.put({'states': states, 'outcomes': outcomes, 'turns': turns})
 
 
-def AI_plays(model, current_turn, board):
-    best_move = None
-    best_score = float('-inf')
+def AI_plays(model, current_turn, board, epsilon=0.1):
     valid_moves = board.check_for_valid_show(current_turn, directions_to_check)
-
     if not valid_moves:
         return None
+
+    # S pravděpodobností epsilon zahraj náhodný tah
+    if random.random() < epsilon:
+        return random.choice(valid_moves)
+
+    # Jinak zahraj nejlepší tah
+    best_move = None
+    # Hledáme tah, který maximalizuje *naše* skóre
+    # Naše nejlepší skóre začíná na nejnižší možné hodnotě
+    best_score = float('-inf')
 
     for move in valid_moves:
         row, col = move
         board_copy = board.clone_board()
         board_copy.grid[row, col] = current_turn
         board_copy.flip(col, row, current_turn, directions_to_check)
-        tensor = convert_to_tensor_board(board_copy, current_turn)
-        # Model vrací predikci hodnoty pozice
-        with torch.no_grad():  # Nepočítej gradienty při inference, neukládá graf hodnot neuronu(nesnaží se je zlepšit je jen zaměřen na hraní)
-            score = model(tensor).item()  # .item() převede tensor na číslo
-        if score > best_score:
-            best_score = score
+
+        # Nyní je na tahu soupeř (-current_turn)
+        # Vytvoříme tenzor z perspektivy SOUPEŘE
+        tensor = convert_to_tensor_board(board_copy, -current_turn)
+
+        with torch.no_grad():
+            # Získáme skóre, které model předpovídá PRO SOUPEŘE
+            opponent_score = model(tensor).item()
+
+        # Naše skóre je negativní hodnota skóre soupeře
+        # (Pokud soupeř vyhrává (1.0), my prohráváme (-1.0))
+        my_score = -opponent_score
+
+        # Chceme maximalizovat *naše* skóre
+        if my_score > best_score:
+            best_score = my_score
             best_move = [row, col]
 
     return best_move
@@ -619,25 +656,29 @@ def AI_self_trainig_full_function(model, epochs):
 
 
 def turnament(save_path, save_path_2, games_to_generate):
-    model = Neural_agent()
-    model_2 = Neural_agent()
+    print("turnament has started")
 
-    model.load(save_path)
-    model_2.load(save_path_2)
+    model_t = Neural_agent()
+    model_2_t = Neural_agent()
+
+    model_t.load(save_path)
+    model_2_t.load(save_path_2)
 
     white_wins = 0
     black_wins = 0
     draws = 0
 
-    model.eval()
-    model_2.eval()
+    model_t.eval()
+    model_2_t.eval()
 
     board = Board()
     current_turn = random.choice([1, -1])
+
     no_valid_move_counter = 0
     games_played = 0
 
     while games_played < games_to_generate:
+        end_of_the_match = False
         valid_moves = board.check_for_valid_show(current_turn, directions_to_check)
 
         # Kontrola platných tahů
@@ -647,9 +688,6 @@ def turnament(save_path, save_path_2, games_to_generate):
                 # Oba hráči nemohou táhnout - konec hry
                 end_of_the_match, white_points, black_points, winner = board.end_of_match()
                 games_played += 1
-                print(
-                    f"Game {games_played} winner: {winner} | White wins: {white_wins} | Black wins: {black_wins} | Draws: {draws}")
-
                 if winner == "white":
                     white_wins += 1
                 elif winner == "black":
@@ -668,12 +706,14 @@ def turnament(save_path, save_path_2, games_to_generate):
                 continue
 
         # Existují platné tahy - reset počítadla
+
         no_valid_move_counter = 0
 
         if current_turn == 1:
-            move = AI_plays(model, current_turn, board)
+            move = AI_plays(model_t, current_turn, board)
 
             if move is None or move not in valid_moves:
+                print("random move was played")
                 row, col = random.choice(valid_moves)
                 board.grid[row, col] = current_turn
                 board.flip(col, row, current_turn, directions_to_check)
@@ -686,8 +726,8 @@ def turnament(save_path, save_path_2, games_to_generate):
                 current_turn = -current_turn
                 end_of_the_match, white_points, black_points, winner = board.end_of_match()
 
-        if current_turn == - 1:
-            move = AI_plays(model_2, current_turn, board)
+        elif current_turn == - 1:
+            move = AI_plays(model_2_t, current_turn, board)
 
             if move is None or move not in valid_moves:
                 row, col = random.choice(valid_moves)
@@ -704,7 +744,6 @@ def turnament(save_path, save_path_2, games_to_generate):
 
         if end_of_the_match:
             games_played += 1
-            print(f"Game{games_played} winner:{winner} white wins:{white_wins} black wins:{black_wins} draws:{draws}")
 
             if winner == "white":
                 white_wins = white_wins + 1
@@ -716,6 +755,7 @@ def turnament(save_path, save_path_2, games_to_generate):
             board = Board()
             current_turn = random.choice([1, -1])
             no_valid_move_counter = 0
+    return white_wins, black_wins, draws
 
 
 class Board:
@@ -1179,21 +1219,31 @@ class Neural_agent(nn.Module):
 
 
 if __name__ == '__main__':
-    total_games_turnament = 101
+    total_games_turnament = 1000
     total_games = 100
-    num_processes = 10
-    depth = 2
+    num_processes = 5
+    depth = 1
     num_epochs = 10
-    learning_rate = 1e-3
-    # run_data_generation(dataset_path_depth_2, total_games,num_processes,depth)
+    learning_rate = 1e-4
+    # run_data_generation(dataset_path_test, total_games,num_processes,depth)y
     # print("\nData generation script finished successfully.")
 
     model_1 = Neural_agent()
+    model_2 = Neural_agent()
+    model_3 = Neural_agent()
 
-    # training_on_data(model_1, dataset_path_depth_2, num_epochs, learning_rate, save_path_depth_2)
+    # training_on_data(model_1, dataset_path_depth_1, num_epochs, learning_rate, save_path_quality_1_1)
+    # print("1")
+    # training_on_data(model_2, dataset_path_depth_2, num_epochs, learning_rate, save_path_quality_2_1)
+    # print("2")
+    # training_on_data(model_3, dataset_path_depth_3, num_epochs, learning_rate, save_path_quality_3_1)
+    # print("3")
 
-    # AI_self_trainig_full_function(model,num_epochs)
-    turnament(save_path_depth_2, save_path_depth_2_low, total_games_turnament)
+    # AI_self_trainig_full_function(model_1,num_epochs)
+
+    white_wins, black_wins, draws = turnament(save_path_quality_1_1, save_path_quality_1_1, total_games_turnament)
+    print(f"Game{total_games_turnament}  white wins:{white_wins} black wins:{black_wins} draws:{draws}")
+
     borders = get_borders(BOARD_SIZE)
     board = Board()
     mouse_x, mouse_y = 0, 0
