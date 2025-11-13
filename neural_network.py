@@ -105,10 +105,19 @@ save_path_depth_3 = "C:/Users/micha/reversi_cursor/reversi_model_nn_depth_3_new.
 save_path_quality_1 = "C:/Users/micha/reversi_cursor/reversi_model_nn_quality_1.pth"
 save_path_quality_2 = "C:/Users/micha/reversi_cursor/reversi_model_nn_quality_2_20.pth"
 save_path_quality_3 = "C:/Users/micha/reversi_cursor/reversi_model_nn_quality_3.pth"
+# trained nother 10 epochs with e-4 for 35 epochs
+save_path_quality_1_35 = "C:/Users/micha/reversi_cursor/reversi_model_nn_quality_1_1_2.pth"
+# trained with e-4 for 20 epochs
+save_path_quality_1_20 = "C:/Users/micha/reversi_cursor/reversi_model_nn_quality_1_20_epochs.pth.pth"
+# trained with e-4 for 25 epochs
+save_path_quality_1_25 = "C:/Users/micha/reversi_cursor/reversi_model_nn_quality_1_25_epochs.pth"
 
-save_path_quality_1_1 = "C:/Users/micha/reversi_cursor/reversi_model_nn_quality_1_1.pth"
-save_path_quality_2_1 = "C:/Users/micha/reversi_cursor/reversi_model_nn_quality_2_1.pth"
-save_path_quality_3_1 = "C:/Users/micha/reversi_cursor/reversi_model_nn_quality_3_1.pth"
+save_path_quality_2_1 = "C:/Users/micha/reversi_cursor/reversi_model_nn_quality_2_1_2.pth"
+save_path_quality_3_1 = "C:/Users/micha/reversi_cursor/reversi_model_nn_quality_3_1_2.pth"
+# base (TRAIND FOR 20 EPOCHS)
+save_path_quality_1_base = "C:/Users/micha/reversi_cursor/reversi_model_nn_quality_1_based.pth"
+save_path_quality_2_base = "C:/Users/micha/reversi_cursor/reversi_model_nn_quality_2_based.pth"
+save_path_quality_3_base = "C:/Users/micha/reversi_cursor/reversi_model_nn_quality_3_based.pth"
 
 dataset_path_test = "C:/Users/micha/reversi_cursor/reversi_dataset_minimax_test.npz"
 dataset_path_depth_1 = "C:/Users/micha/reversi_cursor/reversi_dataset_minimax_depth_1.npz"
@@ -604,6 +613,7 @@ def AI_self_play_data_generation(model, games_to_generate):
 
 def training_AI(model, board_states, game_outcomes, turns):
     model.load(save_path)
+    model.train()
     # panalizes errors quadraticli big mistakes big changes... can be worst when thre are outliers or uncurton outcomes
     # nn.MSELoss()
     # uses quadratic and linear penalization more safe and stabel
@@ -611,7 +621,6 @@ def training_AI(model, board_states, game_outcomes, turns):
     optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 
     # puts the model in training mode deactivets some neurons that  could cose overfitting
-    model.train()
     print("starting training")
     print(f"dataset size: {len(board_states)} states")
 
@@ -1223,7 +1232,7 @@ if __name__ == '__main__':
     total_games = 100
     num_processes = 5
     depth = 1
-    num_epochs = 10
+    num_epochs = 5
     learning_rate = 1e-4
     # run_data_generation(dataset_path_test, total_games,num_processes,depth)y
     # print("\nData generation script finished successfully.")
@@ -1232,16 +1241,12 @@ if __name__ == '__main__':
     model_2 = Neural_agent()
     model_3 = Neural_agent()
 
-    # training_on_data(model_1, dataset_path_depth_1, num_epochs, learning_rate, save_path_quality_1_1)
-    # print("1")
-    # training_on_data(model_2, dataset_path_depth_2, num_epochs, learning_rate, save_path_quality_2_1)
-    # print("2")
-    # training_on_data(model_3, dataset_path_depth_3, num_epochs, learning_rate, save_path_quality_3_1)
-    # print("3")
+    training_on_data(model_1, dataset_path_depth_1, num_epochs, learning_rate, save_path_quality_1_25)
+    print("1")
 
     # AI_self_trainig_full_function(model_1,num_epochs)
 
-    white_wins, black_wins, draws = turnament(save_path_quality_1_1, save_path_quality_1_1, total_games_turnament)
+    white_wins, black_wins, draws = turnament(save_path_quality_1_25, save_path_quality_1_base, total_games_turnament)
     print(f"Game{total_games_turnament}  white wins:{white_wins} black wins:{black_wins} draws:{draws}")
 
     borders = get_borders(BOARD_SIZE)
