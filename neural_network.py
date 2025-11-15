@@ -95,34 +95,53 @@ epsilon_decay = 0.995
 min_epsilon = 0.01
 num_episodes = 50000
 
-save_path = "C:/Users/micha/reversi_cursor/reversi_model_nn.pth"
-# all ready trained on 1000 games
-save_path_depth_1 = "C:/Users/micha/reversi_cursor/reversi_model_nn_depth_2.pth"
-save_path_depth_2_low = "C:/Users/micha/reversi_cursor/reversi_model_nn_depth_1.pth"
-save_path_depth_2 = "C:/Users/micha/reversi_cursor/reversi_model_nn_depth_2_normal.pth"
-save_path_depth_3 = "C:/Users/micha/reversi_cursor/reversi_model_nn_depth_3_new.pth"
+# 1000 games 5 epochs trained model
+save_path_quality_1_5_epochs = "C:/Users/micha/reversi_cursor/reversi_model_nn_quality_1_5_epochs.pth"
+save_path_quality_2_5_epochs = "C:/Users/micha/reversi_cursor/reversi_model_nn_quality_2_5_epochs.pth"
+save_path_quality_3_5_epochs = "C:/Users/micha/reversi_cursor/reversi_model_nn_quality_3_5_epochs.pth"
 
-save_path_quality_1 = "C:/Users/micha/reversi_cursor/reversi_model_nn_quality_1.pth"
-save_path_quality_2 = "C:/Users/micha/reversi_cursor/reversi_model_nn_quality_2_20.pth"
-save_path_quality_3 = "C:/Users/micha/reversi_cursor/reversi_model_nn_quality_3.pth"
-# trained nother 10 epochs with e-4 for 35 epochs
-save_path_quality_1_35 = "C:/Users/micha/reversi_cursor/reversi_model_nn_quality_1_1_2.pth"
-# trained with e-4 for 20 epochs
-save_path_quality_1_20 = "C:/Users/micha/reversi_cursor/reversi_model_nn_quality_1_20_epochs.pth.pth"
-# trained with e-4 for 25 epochs
-save_path_quality_1_25 = "C:/Users/micha/reversi_cursor/reversi_model_nn_quality_1_25_epochs.pth"
+# 1000 games 10 epochs trained model
+save_path_quality_1_10_epochs = "C:/Users/micha/reversi_cursor/reversi_model_nn_quality_1_10_epochs.pth"
+save_path_quality_2_10_epochs = "C:/Users/micha/reversi_cursor/reversi_model_nn_quality_2_10_epochs.pth"
+save_path_quality_3_10_epochs = "C:/Users/micha/reversi_cursor/reversi_model_nn_quality_3_10_epochs.pth"
 
-save_path_quality_2_1 = "C:/Users/micha/reversi_cursor/reversi_model_nn_quality_2_1_2.pth"
-save_path_quality_3_1 = "C:/Users/micha/reversi_cursor/reversi_model_nn_quality_3_1_2.pth"
-# base (TRAIND FOR 20 EPOCHS)
-save_path_quality_1_base = "C:/Users/micha/reversi_cursor/reversi_model_nn_quality_1_based.pth"
-save_path_quality_2_base = "C:/Users/micha/reversi_cursor/reversi_model_nn_quality_2_based.pth"
-save_path_quality_3_base = "C:/Users/micha/reversi_cursor/reversi_model_nn_quality_3_based.pth"
+# 1000 games 15 epochs trained model
+save_path_quality_1_15_epochs = "C:/Users/micha/reversi_cursor/reversi_model_nn_quality_1_15_epochs.pth"
+save_path_quality_2_15_epochs = "C:/Users/micha/reversi_cursor/reversi_model_nn_quality_2_15_epochs.pth"
+save_path_quality_3_15_epochs = "C:/Users/micha/reversi_cursor/reversi_model_nn_quality_3_15_epochs.pth"
 
-dataset_path_test = "C:/Users/micha/reversi_cursor/reversi_dataset_minimax_test.npz"
+# 1000 games 20 epochs trained model
+save_path_quality_1_20_epochs = "C:/Users/micha/reversi_cursor/reversi_model_nn_quality_1_20_epochs.pth"
+save_path_quality_2_20_epochs = "C:/Users/micha/reversi_cursor/reversi_model_nn_quality_2_20_epochs.pth"
+save_path_quality_3_20_epochs = "C:/Users/micha/reversi_cursor/reversi_model_nn_quality_3_20_epochs.pth"
+
+# 200 games 3 epochs trained model
+save_path_quality_1_3_epochs_200_games = "C:/Users/micha/reversi_cursor/reversi_model_nn_quality_1_3_epochs_200_games.pth"
+# 200 games 6 epochs trained model
+save_path_quality_1_6_epochs_200_games = "C:/Users/micha/reversi_cursor/reversi_model_nn_quality_1_6_epochs_200_games.pth"
+# 200 games 9 epochs trained model
+save_path_quality_1_9_epochs_200_games = "C:/Users/micha/reversi_cursor/reversi_model_nn_quality_1_9_epochs_200_games.pth"
+
+# 2000 games 5 epochs trained model
+save_path_quality_1_5_epochs_2000_games = "C:/Users/micha/reversi_cursor/reversi_model_nn_quality_1_5_epochs_2000_games.pth"
+# 2000 games 10 epochs trained model
+save_path_quality_1_10_epochs_2000_games = "C:/Users/micha/reversi_cursor/reversi_model_nn_quality_1_10_epochs_2000_games.pth"
+# 2000 games 15 epochs trained model
+save_path_quality_1_15_epochs_2000_games = "C:/Users/micha/reversi_cursor/reversi_model_nn_quality_1_15_epochs_2000_games.pth"
+# 2000 games 20 epochs trained model
+save_path_quality_1_20_epochs_2000_games = "C:/Users/micha/reversi_cursor/reversi_model_nn_quality_1_20_epochs_2000_games.pth"
+
+# 1000 games of data
+dataset_path_mix = "C:/Users/micha/reversi_cursor/reversi_dataset_minimax_mix.npz"
 dataset_path_depth_1 = "C:/Users/micha/reversi_cursor/reversi_dataset_minimax_depth_1.npz"
 dataset_path_depth_2 = "C:/Users/micha/reversi_cursor/reversi_dataset_minimax_depth_2.npz"
 dataset_path_depth_3 = "C:/Users/micha/reversi_cursor/reversi_dataset_minimax_depth_3.npz"
+
+# 2000 games of data
+dataset_path_depth_1_2000_games = "C:/Users/micha/reversi_cursor/reversi_dataset_minimax_depth_1_2000_games.npz"
+
+# 200 games of data
+dataset_path_depth_1_200_games = "C:/Users/micha/reversi_cursor/reversi_dataset_minimax_depth_1_200_games.npz"
 
 
 def create_a_board(board_state):
@@ -362,12 +381,14 @@ def minimax_data_gathering(games_to_generate, depth):
     return states_array, outcomes_array, turn_array
 
 
-def training_on_data(model, dataset_path, num_epochs, learning_rate, save_path):
+def training_on_data(model, dataset_path, num_epochs, learning_rate, save_path, checkpoint_path=None):
+    model.load(save_path)
     print("Loading dataset...")
     data = np.load(dataset_path)
     board_states = data['boards']
     game_outcomes = data['outcomes']
     turns = data['turns']
+
     # panalizes errors quadraticli big mistakes big changes... can be worst when thre are outliers or uncurton outcomes
     # nn.MSELoss()
     # uses quadratic and linear penalization more safe and stabel
@@ -375,6 +396,12 @@ def training_on_data(model, dataset_path, num_epochs, learning_rate, save_path):
     optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 
     # puts the model in training mode deactivets some neurons that  could cose overfitting
+    if checkpoint_path and os.path.exists(checkpoint_path):
+        checkpoint = torch.load(checkpoint_path)
+        if 'optimizer_state_dict' in checkpoint:
+            optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+            print("Stav optimizeru načten")
+
     model.train()
     print("starting training")
     print(f"dataset size: {len(board_states)} states")
@@ -408,7 +435,11 @@ def training_on_data(model, dataset_path, num_epochs, learning_rate, save_path):
 
         print(f"Epoch {epoch + 1}/{num_epochs} complete | Average Loss: {avg_loss}")
 
-    torch.save(model.state_dict(), save_path)
+    torch.save({
+        'model_state_dict': model.state_dict(),
+        'optimizer_state_dict': optimizer.state_dict()
+    }, save_path)
+
     print(f"--- Training Finished. Model saved to {save_path} ---")
 
 
@@ -612,6 +643,7 @@ def AI_self_play_data_generation(model, games_to_generate):
 
 
 def training_AI(model, board_states, game_outcomes, turns):
+    model = Neural_agent()
     model.load(save_path)
     model.train()
     # panalizes errors quadraticli big mistakes big changes... can be worst when thre are outliers or uncurton outcomes
@@ -765,6 +797,16 @@ def turnament(save_path, save_path_2, games_to_generate):
             current_turn = random.choice([1, -1])
             no_valid_move_counter = 0
     return white_wins, black_wins, draws
+
+
+def copy_model_file(source_path, destination_path):
+    # Načti váhy z původního souboru
+    weights = torch.load(source_path)
+
+    # Ulož je do nového souboru
+    torch.save(weights, destination_path)
+
+    print(f"Model zkopírován z {source_path} do {destination_path}")
 
 
 class Board:
@@ -1222,32 +1264,44 @@ class Neural_agent(nn.Module):
         return final_output
 
     def load(self, save_path):
-        print(f"Loading model weights from {save_path}...")
-        self.load_state_dict(torch.load(save_path))
-        print("completed")
+        checkpoint = torch.load(save_path)
+
+        if isinstance(checkpoint, dict) and 'model_state_dict' in checkpoint:
+            # Nový formát - obsahuje model i optimizer
+            self.load_state_dict(checkpoint['model_state_dict'])
+        else:
+            # Starý formát - přímo state_dict
+            self.load_state_dict(checkpoint)
 
 
 if __name__ == '__main__':
     total_games_turnament = 1000
-    total_games = 100
-    num_processes = 5
-    depth = 1
+    total_games = 36
+    num_processes = 10
+    depth = 3
     num_epochs = 5
     learning_rate = 1e-4
-    # run_data_generation(dataset_path_test, total_games,num_processes,depth)y
-    # print("\nData generation script finished successfully.")
+
+    run_data_generation(dataset_path_mix, total_games, num_processes, depth)
+    print("\nData generation script finished successfully.")
 
     model_1 = Neural_agent()
     model_2 = Neural_agent()
     model_3 = Neural_agent()
 
-    training_on_data(model_1, dataset_path_depth_1, num_epochs, learning_rate, save_path_quality_1_25)
-    print("1")
+    # copy_model_file(save_path_quality_3_30_epochs, save_path_quality_3_40_epochs)
+
+    # training_on_data(model_1,dataset_path_depth_3, num_epochs, learning_rate, save_path_quality_3_20_epochs,save_path_quality_3_20_epochs)
+    # print("1")
+    # training_on_data(model_2, dataset_path_depth_2, num_epochs, learning_rate, save_path_quality_2_10_epochs)
+    # print("2")
+    # training_on_data(model_3, dataset_path_depth_3, num_epochs, learning_rate, save_path_quality_3_10_epochs)
+    # print("3")
 
     # AI_self_trainig_full_function(model_1,num_epochs)
 
-    white_wins, black_wins, draws = turnament(save_path_quality_1_25, save_path_quality_1_base, total_games_turnament)
-    print(f"Game{total_games_turnament}  white wins:{white_wins} black wins:{black_wins} draws:{draws}")
+    # white_wins, black_wins, draws = turnament(save_path_quality_3_10_epochs,save_path_quality_3_20_epochs,total_games_turnament)
+    # print(f"Game{total_games_turnament}  white wins:{white_wins} black wins:{black_wins} draws:{draws}")
 
     borders = get_borders(BOARD_SIZE)
     board = Board()
@@ -1356,4 +1410,5 @@ if __name__ == '__main__':
         pygame.display.flip()
 
 # self play
+# AI model vs AI model
 # AI model vs AI model
